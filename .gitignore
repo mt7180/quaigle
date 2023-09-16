@@ -1,0 +1,4 @@
+venv
+.env
+frontend/static/old_files
+.DS_Store
