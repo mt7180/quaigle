@@ -1,0 +1,13 @@
+[theme]
+base="dark"
+primaryColor="black"
+backgroundColor="white"
+secondaryBackgroundColor="white"
+textColor="black"
+font="monospace"
+
+[logger]
+level = "debug"
+
+[server]
+runOnSave = false

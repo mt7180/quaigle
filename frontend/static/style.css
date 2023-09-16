@@ -1,0 +1,42 @@
+html, body, [class*="css"] {
+    font-family: 'Azeret Mono', monospace;
+    /* background-color: yellow; */
+}
+
+.block-container,
+.reportview-container,
+.main {
+    padding-top: 5px;
+    padding-bottom: 0;
+}
+
+[data-testid="stFileUploader"],
+[data-testid="stTextInput"]>div>div>input,
+[data-testid="stChatInput"],
+[data-testid="baseButton-secondary"] {
+    border: 1px solid black;
+    border-radius: 7px;
+    background-color: white;
+    margin: 0px;
+    
+    /* padding: 15 !important; */
+    /* padding-top: 0; */
+}
+
+[data-testid="stMarkdownContainer"] ul{
+    padding-left:10px;
+}
+
+/* [data-testid="stChatInput"] {
+    height: 4rem;
+} */
+
+hr {
+    margin-top: 0;
+    margin-bottom: 5%;
+}
+
+
+header {
+    visibility: hidden;
+}
