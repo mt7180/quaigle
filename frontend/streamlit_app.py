@@ -4,13 +4,13 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.stylable_container import stylable_container
 from dotenv import load_dotenv
 import os
-from pathlib import Path
+#from pathlib import Path
 from PIL import Image
 
 from utils.helpers import register_page
+#from utils.request_wrapper import Client, APIResponse
 
-#load_dotenv()
-#API_KEY = os.getenv('OPENAI_API_KEY')
+
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
 
@@ -83,8 +83,21 @@ def display_sidemenu():
         """
     )
     with st.sidebar.container():
-        st.file_uploader('dragndrop',label_visibility="collapsed")
-        url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
+        if uploaded_file := st.file_uploader(
+            'dragndrop',
+            type=["txt","csv","pdf","sqlite","db","html" ],
+            label_visibility="collapsed"
+        ):
+            try:
+                print( uploaded_file.type)
+                save_data_file(uploaded_file)
+                st.success(f"Saved File:{uploaded_file.name}")
+            except Exception as e:
+                print(f"Exception occurred while saving uploaded file: {e}")
+            
+        else:
+            url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
+            # TODO: if url is entered deactivate file upload
         add_vertical_space(1)
         with stylable_container(
             key="styled_container",
@@ -98,20 +111,17 @@ def display_sidemenu():
             add_vertical_space(1)
             _, c2, _ = st.columns((1, 6, 1))
             with c2:
-                st.slider('temperature', min_value=0, max_value=1)
-                st.slider("max tokens:",min_value=1000, max_value=4000,value=4000)
+                temperature = st.slider('temperature', min_value=0, max_value=1)
+                max_tokens = st.slider("max tokens:",min_value=1000, max_value=4000,value=4000)
 
 
 @register_page(MAIN_PAGE)
 def questionai():
     with st.container():
-        
-
         for message in st.session_state.messages:
-                #image = "xxx.png" if message["role"] == "user" else "xxx.png"
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-        
+            #image = "xxx.png" if message["role"] == "user" else "xxx.png"
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
         if prompt := st.chat_input("-> Post questions regarding the content of your file, AI will answer..."):
             # print(prompt)
@@ -123,7 +133,7 @@ def questionai():
             with st.chat_message("assistant"):
                 st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-        else:
+        elif len(st.session_state.messages)==0:
             image = Image.open('./static/main_picture3.png')
             st.image(image, caption=None)
     
@@ -137,6 +147,16 @@ def quizme():
 def statistics():
     with st.container():
         st.text('Statics')
+
+def save_data_file(file):
+    if file.name.split(".")[-1] in ["txt", "html"]:
+        write_mode = "w"
+    elif file.name.split(".")[-1] in ["pdf", "sqlite", "db"]:
+        write_mode = "wb"
+    else:
+        raise IOError(f"Wrong file type uploaded: {file.type}")
+    with open(os.path.join("../data",file.name),write_mode) as f:
+        f.write(file.getvalue())  # TODO: something goes wrong here, data is not saved in file
 
 def main():
     set_page_settings()

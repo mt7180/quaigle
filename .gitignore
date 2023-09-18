@@ -3,3 +3,5 @@ venv
 frontend/static/old_files
 .DS_Store
 todos.txt
+frontend/utils/__pycache__/*
+frontend/utils/request_wrapper.py
