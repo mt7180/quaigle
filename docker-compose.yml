@@ -1,7 +1,7 @@
 version: "3"
 services:
   fastapi_service:
-    container_name: quagleapi
+    container_name: quaigleapi
     env_file: .env
     build: backend/.
     environment:
@@ -15,7 +15,7 @@ services:
       - backend
 
   streamlit_service:
-    container_name: quagleapp
+    container_name: quaigleapp
     build: frontend/.
     command: "streamlit run --server.port 8501 --server.enableCORS false streamlit_app.py"
     ports:
