@@ -1,15 +1,20 @@
+# run ommand: streamlit run streamlit_app.py 
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.stylable_container import stylable_container
-from dotenv import load_dotenv
+import requests
 import os
-#from pathlib import Path
 from PIL import Image
 
 from utils.helpers import register_page
 #from utils.request_wrapper import Client, APIResponse
 
+DEBUG = True
+API_URL = (
+    "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
+)
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
@@ -36,8 +41,8 @@ def initialize_session(refresh_session=False):
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
-        if "data_file" not in st.session_state:
-            st.session_state.data_file = None
+        if "counter" not in st.session_state:
+            st.session_state.counter = 0
         if "costs" not in st.session_state:
             st.session_state.costs = []
         if "total_tokens" not in st.session_state:
@@ -58,6 +63,24 @@ def display_options_menu():
             }
         )
         st.session_state.selected_page = selected_page.lower()
+
+
+def uploader_callback():
+    if st.session_state['file_uploader'] is not None:
+        uploaded_file = st.session_state['file_uploader']
+        try:
+            s_response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
+            print(s_response.json())
+            if s_response.status_code == 200:
+                response_data = s_response.json()
+                st.session_state.counter += 1
+                print(response_data["summary"], st.session_state.counter)
+                post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
+            else:
+                st.error(f"Error: {s_response.status_code}")
+        except Exception as e:
+            print(f"Exception occurred while uploading file to backend: {e.args}")
+            st.error(f"Error: {e}")
 
 
 def display_sidemenu():
@@ -86,14 +109,11 @@ def display_sidemenu():
         if uploaded_file := st.file_uploader(
             'dragndrop',
             type=["txt","csv","pdf","sqlite","db","html" ],
+            on_change=uploader_callback,
+            key="file_uploader",
             label_visibility="collapsed"
         ):
-            try:
-                print( uploaded_file.type)
-                save_data_file(uploaded_file)
-                st.success(f"Saved File:{uploaded_file.name}")
-            except Exception as e:
-                print(f"Exception occurred while saving uploaded file: {e}")
+            st.success(f"File uploaded to backend")
             
         else:
             url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
@@ -148,15 +168,8 @@ def statistics():
     with st.container():
         st.text('Statics')
 
-def save_data_file(file):
-    if file.name.split(".")[-1] in ["txt", "html"]:
-        write_mode = "w"
-    elif file.name.split(".")[-1] in ["pdf", "sqlite", "db"]:
-        write_mode = "wb"
-    else:
-        raise IOError(f"Wrong file type uploaded: {file.type}")
-    with open(os.path.join("../data",file.name),write_mode) as f:
-        f.write(file.getvalue())  # TODO: something goes wrong here, data is not saved in file
+def post_ai_message_to_chat(message):
+    st.session_state.messages.append({"role": "assistant", "content": message})
 
 def main():
     set_page_settings()
