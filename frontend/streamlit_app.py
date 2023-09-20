@@ -36,8 +36,6 @@ def set_page_settings():
 def initialize_session(refresh_session=False):
     if refresh_session:
         st.session_state.messages = []
-        #st.session_state.openai_lc_client = None
-        #st.session_state.result = None
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []

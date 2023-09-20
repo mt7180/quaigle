@@ -32,6 +32,14 @@ async def summarize_text(file_name: str) -> str:
         text = " ".join(f.read().split('\n'))
     return summarize_from_string(text)
 
+    
+
+# AIApplication:
+# - give different ai-functions 
+# - make ai_models & pydantic classes for QueryDocument QAQuestion QAResponse
+# - try to use state to save the embeddings v-db, otherwise: create and save vectorstore as with marvin-recipes
+# - first try text-doc, later on pdf etc
+
 # @app.get("/qa_text")
 # def run(question: str, state:  {}) -> QAResponse:
 #     description = (
@@ -39,9 +47,9 @@ async def summarize_text(file_name: str) -> str:
 #         
 #     )
 
-#     qa = AIApplication(state=state, description=description)
+#     qa = AIApplication(state=state, description=description, functions.., state ..)
 
-#     # We'll issue the update to the application.
+#     
 #     response = qa(question)
 
 #     # We'll return the response, along with the updated state.

@@ -5,3 +5,4 @@ frontend/static/old_files
 todos.txt
 frontend/utils/__pycache__/*
 frontend/utils/request_wrapper.py
+*.pyc
