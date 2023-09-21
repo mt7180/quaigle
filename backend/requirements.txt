@@ -1,0 +1,5 @@
+marvin>=1.4.0
+fastapi>=0.103.1
+pydantic
+python-dotenv
+python-multipart

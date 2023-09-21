@@ -1,16 +1,21 @@
+# run ommand: streamlit run streamlit_app.py 
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.stylable_container import stylable_container
-from dotenv import load_dotenv
+import requests
 import os
-from pathlib import Path
 from PIL import Image
 
 from utils.helpers import register_page
+#from utils.request_wrapper import Client, APIResponse
 
-#load_dotenv()
-#API_KEY = os.getenv('OPENAI_API_KEY')
+DEBUG = True
+API_URL = (
+    "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
+)
+
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
 
@@ -31,13 +36,11 @@ def set_page_settings():
 def initialize_session(refresh_session=False):
     if refresh_session:
         st.session_state.messages = []
-        #st.session_state.openai_lc_client = None
-        #st.session_state.result = None
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
-        if "data_file" not in st.session_state:
-            st.session_state.data_file = None
+        if "counter" not in st.session_state:
+            st.session_state.counter = 0
         if "costs" not in st.session_state:
             st.session_state.costs = []
         if "total_tokens" not in st.session_state:
@@ -58,6 +61,24 @@ def display_options_menu():
             }
         )
         st.session_state.selected_page = selected_page.lower()
+
+
+def uploader_callback():
+    if st.session_state['file_uploader'] is not None:
+        uploaded_file = st.session_state['file_uploader']
+        try:
+            s_response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
+            # print(s_response.json())
+            if s_response.status_code == 200:
+                response_data = s_response.json()
+                st.session_state.counter += 1
+                # print(response_data["summary"], st.session_state.counter)
+                post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
+            else:
+                st.error(f"Error: {s_response.status_code}")
+        except Exception as e:
+            print(f"Exception occurred while uploading file to backend: {e.args}")
+            st.error(f"Error: {e}")
 
 
 def display_sidemenu():
@@ -83,8 +104,18 @@ def display_sidemenu():
         """
     )
     with st.sidebar.container():
-        st.file_uploader('dragndrop',label_visibility="collapsed")
-        url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
+        if uploaded_file := st.file_uploader(
+            'dragndrop',
+            type=["txt","csv","pdf","sqlite","db","html" ],
+            on_change=uploader_callback,
+            key="file_uploader",
+            label_visibility="collapsed"
+        ):
+            st.success(f"File uploaded to backend")
+            
+        else:
+            url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
+            # TODO: if url is entered deactivate file upload
         add_vertical_space(1)
         with stylable_container(
             key="styled_container",
@@ -98,20 +129,17 @@ def display_sidemenu():
             add_vertical_space(1)
             _, c2, _ = st.columns((1, 6, 1))
             with c2:
-                st.slider('temperature', min_value=0, max_value=1)
-                st.slider("max tokens:",min_value=1000, max_value=4000,value=4000)
+                temperature = st.slider('temperature', min_value=0, max_value=1)
+                max_tokens = st.slider("max tokens:",min_value=1000, max_value=4000,value=4000)
 
 
 @register_page(MAIN_PAGE)
 def questionai():
     with st.container():
-        
-
         for message in st.session_state.messages:
-                #image = "xxx.png" if message["role"] == "user" else "xxx.png"
-                with st.chat_message(message["role"]):
-                    st.markdown(message["content"])
-        
+            #image = "xxx.png" if message["role"] == "user" else "xxx.png"
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
         if prompt := st.chat_input("-> Post questions regarding the content of your file, AI will answer..."):
             # print(prompt)
@@ -123,7 +151,7 @@ def questionai():
             with st.chat_message("assistant"):
                 st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-        else:
+        elif len(st.session_state.messages)==0:
             image = Image.open('./static/main_picture3.png')
             st.image(image, caption=None)
     
@@ -137,6 +165,9 @@ def quizme():
 def statistics():
     with st.container():
         st.text('Statics')
+
+def post_ai_message_to_chat(message):
+    st.session_state.messages.append({"role": "assistant", "content": message})
 
 def main():
     set_page_settings()
