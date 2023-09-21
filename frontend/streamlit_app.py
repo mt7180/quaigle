@@ -68,11 +68,11 @@ def uploader_callback():
         uploaded_file = st.session_state['file_uploader']
         try:
             s_response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
-            print(s_response.json())
+            # print(s_response.json())
             if s_response.status_code == 200:
                 response_data = s_response.json()
                 st.session_state.counter += 1
-                print(response_data["summary"], st.session_state.counter)
+                # print(response_data["summary"], st.session_state.counter)
                 post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
             else:
                 st.error(f"Error: {s_response.status_code}")
