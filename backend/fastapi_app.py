@@ -7,7 +7,8 @@ from marvin import ai_fn, AIApplication, ai_model
 from marvin import settings as marvin_settings
 import marvin.tools.filesystem
 import marvin.tools.shell
-import marvin.tools.chroma
+from marvin.tools.chroma import MultiQueryChroma as marvin_QueryChroma
+#from marvin.tools.chroma import 
 import marvin.utilities.embeddings
 from dotenv import load_dotenv
 import pathlib
@@ -133,17 +134,29 @@ def run(question: str) -> str:
         description=f"""
         You are a chatbot answering to to all questions concerning the content of a given
         text file.
-        The text file has the name {"test2.txt"} and is located at {FILE_DIR}. 
-        You are not allowed to write or modify any files. You are only allowed to read files from {FILE_DIR}. 
-        The user will give you instructions on what questions to answer.
+        The text file has the name {"test2.txt"} and is located at {FILE_DIR}. Please make the embeddings for
+        the content of the text file only once and save them into a chroma vector database, which should be saved for later use in 
+        {FILE_DIR} .
+        You are only allowed to read or write files in the {FILE_DIR}. 
+        The user will give you instructions on what questions to answer. Make shure you always reuse the embeddings from the 
+        existing vector database as knowledgebase.
         When you write the answers, you will need to ensure that the
         user's expectations are met. Remember, you are an accurate and experianced author 
-        and you write unique and short answers aligned with the content of the given text file.
+        and you write unique and short answers aligned with the content of the given text file 
+        (which embeddings should be saved in the chroma vector database).
         You should use friendly, easy to read language, but stay correct and focussed.
         The answers should not have more than 10 sentences.
+        The last sentence should state if new embeddings were used or the embeddings of the chroma data base 
+        and the path and file name of the chroma database.
         """, 
         tools=[
             marvin.tools.filesystem.ReadFile(root_dir=FILE_DIR),
+            marvin.tools.filesystem.WriteFile(root_dir=FILE_DIR),
+            marvin_QueryChroma(
+                name="chroma_db_text",
+                description="chroma data base to store the embeddings of the content of the given text"
+            ),
+            marvin.utilities.embeddings.create_openai_embeddings,
             #marvin.tools.shell.Shell(
             #require_confirmation=True, working_directory=FILE_DIR
             #)
