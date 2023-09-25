@@ -1,8 +1,10 @@
 venv
-.env
+*.env
 frontend/static/old_files
 .DS_Store
 todos.txt
-frontend/utils/__pycache__/*
 frontend/utils/request_wrapper.py
 *.pyc
+PoC_LlamaIndex/data
+PoC_LlamaIndex/storage
+PoC_marvin/data
