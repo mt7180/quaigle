@@ -52,9 +52,9 @@ async def upload_file(file: UploadFile | None = None):
     os.makedirs("data", exist_ok=True)
     
     token_counter.reset_counts() # TODO: put into qa route
-    cwd = pathlib.Path(__file__).parent / "data"
+    cwd = pathlib.Path(__file__).parent 
     try:     
-        with open(cwd / file.filename, "wb") as f:
+        with open(cwd / "data"/ file.filename, "wb") as f:
             f.write(file.file.read())
         
         document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
