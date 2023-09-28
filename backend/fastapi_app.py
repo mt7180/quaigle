@@ -1,39 +1,47 @@
 # command to run: uvicorn fastapi_app:app --reload
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel
-from marvin import ai_fn, AIApplication
-from marvin import settings as marvin_settings
+
+from llama_index.callbacks import CallbackManager, TokenCountingHandler
+    
+import logging
+import sys
 from dotenv import load_dotenv
 import pathlib
 import os
+import certifi
+import tiktoken
+
+# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
+from script import AITextDocument, CustomLlamaIndexChatEngineWrapper, set_up_chatbot 
+
+# workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+os.environ["SSL_CERT_FILE"] = certifi.where()
 
 load_dotenv()
-marvin_settings.openai.api_key = os.getenv('OPENAI_API_KEY')
+
+chat_engine, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
 
 class TextSummary(BaseModel):
     file_name: str
+    text_category: str
     summary: str
-
-@ai_fn(
-    instructions="You are an accurate and experienced copywriter."
-)
-def summarize_from_string(text: str) -> str:
-    """ Please write a unique and short summary of the given text 
-    using friendly, easy to read language, but stay correct and focussed. 
-    The summary should have at maximum 10 sentences.
-    """
-    # noqa: E501
+    used_tokens: int
 
 
-async def summarize_text(file_name: str) -> str:
-    cwd = pathlib.Path.cwd()
-    data_file_path = cwd / "data" / file_name
-    print(str(data_file_path))
-    with open(data_file_path,"r") as f:
-        text = " ".join(f.read().split('\n'))
-    return summarize_from_string(text)
+class QAResponse(BaseModel):
+    ai_answer: dict[str,str] = Field(
+        default_factory=dict, 
+        description="A mapping containing the user question to the ai answer."
+    )
+    used_tokens: int
+
+
+# @app.on_event("startup")
+# def on_startup():
 
 @app.post("/upload", response_model=TextSummary)
 async def upload_file(file: UploadFile | None = None):
@@ -43,11 +51,31 @@ async def upload_file(file: UploadFile | None = None):
     # Ensure that the shared data folder exists
     os.makedirs("data", exist_ok=True)
     
-    with open(f"data/{file.filename}", "wb") as f:
-        f.write(file.file.read())
-    summary_str= await summarize_text(file.filename)
-    print(summary_str)
+    token_counter.reset_counts() # TODO: put into qa route
+
+    try:     
+        with open(f"data/{file.filename}", "wb") as f:
+            f.write(file.file.read())
+        
+        document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
+        chat_engine.add_document(document)
+
+        # data_file_dir = pathlib.Path.cwd() / "data"
+    except Exception as e:
+        return TextSummary(
+            file_name=file.filename,
+            text_category="",
+            summary=f"There was an error on uploading the file: {e}",
+            used_tokens=int(token_counter.total_llm_token_count),
+        )
+    finally:
+        file.file.close() # do I need this (with statement)?
+        
+    logging.debug(document.text_summary)
     return TextSummary(
         file_name=file.filename,
-        summary= summary_str
+        text_category = document.text_category,
+        summary= document.text_summary,
+        used_tokens=token_counter.total_llm_token_count,
     )
+

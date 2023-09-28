@@ -1,7 +1,5 @@
 
-import os
-import certifi
-from dotenv import load_dotenv
+
 from llama_index import (
     VectorStoreIndex, 
     SimpleDirectoryReader,
@@ -23,15 +21,14 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.chat_engine.condense_question import CondenseQuestionChatEngine
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.memory import ChatMemoryBuffer
+from llama_index.indices.vector_store.retrievers import VectorIndexRetriever
+from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
 from llama_index.bridge.pydantic import BaseModel, Field
 import pathlib
-
-import logging
-import sys
-
 import tiktoken
+import logging
 
 from document_categories import CATEGORY_LABELS
 
@@ -47,10 +44,10 @@ class AITextDocument:
     def __init__(self, document_name: str, llm_str: str, callback_manager: CallbackManager | None =None):
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
-        self.nodes = self.split_document_and_aiparse(llm_str)
+        self.nodes = self.split_document_and_extract_metadata(llm_str)
         self.text_category = self.nodes[0].metadata["marvin_metadata"].get("text_category")
         self.text_summary: str = self.nodes[0].metadata["marvin_metadata"].get("description")
-        logging.debug(f"Number of used tokens: {token_counter.total_embedding_token_count}")
+        # logging.debug(f"Number of used tokens: {token_counter.total_embedding_token_count}")
         logging.debug(f"Category: {self.text_category}, Summary: {self.text_summary}")
 
     @classmethod
@@ -84,7 +81,7 @@ class AITextDocument:
             ],
         )
     
-    def split_document_and_aiparse(self, llm_str):
+    def split_document_and_extract_metadata(self, llm_str):
         text_splitter = self._get_text_splitter()
         metadata_extractor = self._get_metadata_extractor(llm_str)
         node_parser = SimpleNodeParser(
@@ -97,7 +94,7 @@ class AITextDocument:
 
     @ai_model
     class AIDocument(BaseModel):
-        description: str = Field(..., description="a brief summary of the document content.")
+        description: str = Field(..., description="a brief summary of the document content")
         text_category: str = Field(...,description=f"best matching text category from the following list: {str(CATEGORY_LABELS)}")
     
 
@@ -122,8 +119,7 @@ class CustomLlamaIndexChatEngineWrapper:
         #LlamaTextDocument(document_name, CustomLlamaIndexChatEngine.llm)
         self.vector_index = self._create_vector_index()
         #super().__init__()
-        self.chat_engine = self.create_chat_engine()
-        return 
+        self.chat_engine = self.create_chat_engine() 
         
 
     def _create_service_context(self):
@@ -142,7 +138,7 @@ class CustomLlamaIndexChatEngineWrapper:
     def _create_vector_index(self):
         #print(node. for doc in self.documents for node in doc.nodes)
         return VectorStoreIndex(
-            [node for doc in self.documents for node in doc.nodes], 
+            [node for doc in self.documents for node in doc.nodes], # current use case: no docs availabe, so empty list []
             service_context=self.service_context
         ) # openai api is called with whole text to make the embeddings
     
@@ -151,14 +147,31 @@ class CustomLlamaIndexChatEngineWrapper:
             nodes, 
             service_context=self.service_context) # is this enough or do I have to recreate the chat engine?
 
-    def create_chat_engine(self):
-        vector_retriever = VectorIndexRetriever(
-            index=self.vector_index,
-            similarity_top=2,
-
+    def _create_vector_index_retriever(self):
+        vector_store_info = VectorStoreInfo(
+            content_info="content of uploaded text documents",
+            metadata_info=[
+                MetadataInfo(
+                    name="text_category",
+                    type="str",
+                    description="best matching text category (e.g. Technical, Biagraphy, Sience Fiction, ... )",
+                ),
+                MetadataInfo(
+                    name="description",
+                    type="str",
+                    description="a brief summary of the document content",
+                ),
+            ],
         )
+        return VectorIndexRetriever(
+            index=self.vector_index,
+            vector_store_info=vector_store_info,
+            similarity_top=10,
+        )
+
+    def create_chat_engine(self):
         vector_query_engine = RetrieverQueryEngine(
-            retriever=vector_retriever,
+            retriever=self._create_vector_index_retriever(),
             response_synthesizer=get_response_synthesizer(),
             callback_manager=self.callback_manager,
         )
@@ -171,7 +184,26 @@ class CustomLlamaIndexChatEngineWrapper:
             callback_manager=self.callback_manager,
         )
 
+def set_up_chatbot():
+    token_counter = TokenCountingHandler(
+        tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
+    )
+    callback_manager = CallbackManager([token_counter])
+
+    return (
+        CustomLlamaIndexChatEngineWrapper(
+            callback_manager=callback_manager
+        ),
+        callback_manager,
+        token_counter,
+    )
+
 if __name__ == "__main__":
+    import os
+    import sys
+    import certifi
+    from dotenv import load_dotenv
+
     # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
     os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -181,21 +213,16 @@ if __name__ == "__main__":
     API_KEY = os.getenv('OPENAI_API_KEY')
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-    #openai_log = "debug"
+    # openai_log = "debug"
     
-    token_counter = TokenCountingHandler(
-        tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
-    )
-    callback_manager = CallbackManager([token_counter])
+    chat_engine, callback_manager, token_counter = set_up_chatbot()
 
-    chat_engine = CustomLlamaIndexChatEngineWrapper(callback_manager=callback_manager)
-    
     try: 
         document = AITextDocument("test2.txt", "gpt-3.5-turbo", callback_manager)
         chat_engine.add_document(document)
 
     except Exception as e:
-        print(f"ERROR while loading and adding document to vector index: {e.with_traceback}")
+        print(f"ERROR while loading and adding document to vector index: {e.args}")
         exit()
 
     questions = [
