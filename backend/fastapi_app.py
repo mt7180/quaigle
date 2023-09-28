@@ -33,12 +33,10 @@ class TextSummary(BaseModel):
 
 
 class QAResponse(BaseModel):
-    # ai_answer: dict[str,str] = Field(
-    #     default_factory=dict, 
-    #     description="A mapping containing the user question to the ai answer."
-    # )
-    user_question: str
-    ai_answer: str
+    ai_answer: dict[str,str] = Field(
+        default_factory=dict, 
+        description="A mapping containing the user question to the ai answer."
+    )
     used_tokens: int
 
 
@@ -48,17 +46,12 @@ class QAResponse(BaseModel):
 @app.post("/upload", response_model=TextSummary)
 async def upload_file(file: UploadFile | None = None):
     if not file:
-        return TextSummary(
-            file_name="",
-            text_category="",
-            summary="No file was uploaded.",
-            used_tokens=0,
-        )
+        return  #{"message": "No upload file sent"}
     
     # Ensure that the shared data folder exists
     os.makedirs("data", exist_ok=True)
     
-    token_counter.reset_counts()
+    token_counter.reset_counts() # TODO: put into qa route
 
     try:     
         with open(f"data/{file.filename}", "wb") as f:
@@ -83,18 +76,5 @@ async def upload_file(file: UploadFile | None = None):
         file_name=file.filename,
         text_category = document.text_category,
         summary= document.text_summary,
-        used_tokens=token_counter.total_llm_token_count,
-    )
-
-@app.get("/qa_text", response_model=QAResponse)
-async def qa_text(question: str):
-    token_counter.reset_counts() 
-    response = chat_engine.chat_engine.chat(question)
-    logging.debug(response.response)
-
-    return QAResponse(
-        #{question: response.response},
-        user_question= question,
-        ai_answer= response.response,
         used_tokens=token_counter.total_llm_token_count,
     )
