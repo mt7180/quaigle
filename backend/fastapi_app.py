@@ -1,6 +1,6 @@
 # command to run: uvicorn fastapi_app:app --reload
 from fastapi import FastAPI, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
     
@@ -52,9 +52,9 @@ async def upload_file(file: UploadFile | None = None):
     os.makedirs("data", exist_ok=True)
     
     token_counter.reset_counts() # TODO: put into qa route
-
+    cwd = pathlib.Path(__file__).parent / "data"
     try:     
-        with open(f"data/{file.filename}", "wb") as f:
+        with open(cwd / file.filename, "wb") as f:
             f.write(file.file.read())
         
         document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
