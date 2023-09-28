@@ -8,28 +8,35 @@ from marvin import settings as marvin_settings
 import marvin.tools.filesystem
 import marvin.tools.shell
 from marvin.tools.chroma import MultiQueryChroma as marvin_QueryChroma
-#from marvin.tools.chroma import 
-import marvin.utilities.embeddings
+
+from llama_index.callbacks import CallbackManager, TokenCountingHandler
+    
+import logging
+import sys
 from dotenv import load_dotenv
 import pathlib
 import os
-
 import certifi
+import tiktoken
+
+# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
+from script import AITextDocument, CustomLlamaIndexChatEngineWrapper, set_up_chatbot 
 
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
-
-
 load_dotenv()
-marvin_settings.openai.api_key = os.getenv('OPENAI_API_KEY')
+
+chat_engine, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
 
 class TextSummary(BaseModel):
     file_name: str
+    text_category: str
     summary: str
+    used_tokens: int
 
 
 class QAResponse(BaseModel):
@@ -37,49 +44,11 @@ class QAResponse(BaseModel):
         default_factory=dict, 
         description="A mapping containing the user question to the ai answer."
     )
-
-marvin_settings.llm_temperature = 0
-marvin_settings.log_level = "DEBUG"
-
-@ai_fn(
-    instructions="You are an accurate and experienced copywriter."
-)
-def summarize_from_string(text: str) -> str:
-    """ Please write a unique and short summary of the given text 
-    using friendly, easy to read language, but stay correct and focussed. 
-    The summary should have at maximum 10 sentences.
-    """
-    # noqa: E501
-
-FILE_DIR = pathlib.Path.cwd() / "data"
-
-@ai_fn(
-    instructions="You are an accurate and experienced copywriter.",
-    tools=[
-        marvin.tools.filesystem.ReadFile(root_dir=FILE_DIR),
-        marvin.tools.shell.Shell(
-            require_confirmation=True, working_directory=FILE_DIR
-        ),
-       
-    ],
-)
-def summarize_from_file(file_name: str) -> str:
-    f""" You are responsible for writing a summary of the text given in the text file {file_name},
-    located at {FILE_DIR}. You are not allowed to write or modify any files. You are only allowed to read files from {FILE_DIR}. 
-    Please write a unique and short summary of the content of the given text file
-    using friendly, easy to read language, but stay correct and focussed.
-    The summary should have at maximum 10 sentences and .
-    """
-    # noqa: E501
+    used_tokens: int
 
 
-async def summarize_text(file_name: str) -> str:
-    cwd = pathlib.Path.cwd()
-    data_file_path = cwd / "data" / file_name
-    print(str(data_file_path))
-    with open(data_file_path,"r") as f:
-        text = " ".join(f.read().split('\n'))
-    return summarize_from_string(text)
+# @app.on_event("startup")
+# def on_startup():
 
 @app.post("/upload", response_model=TextSummary)
 async def upload_file(file: UploadFile | None = None):
@@ -88,85 +57,32 @@ async def upload_file(file: UploadFile | None = None):
     
     # Ensure that the shared data folder exists
     os.makedirs("data", exist_ok=True)
+    
+    token_counter.reset_counts() # TODO: put into qa route
 
     try:     
         with open(f"data/{file.filename}", "wb") as f:
             f.write(file.file.read())
-        # summary_str= await summarize_text(file.filename)
-        # with NamedTemporaryFile(delete=False, mode="w", encoding="utf-8") as temp_file:
-        # Save the uploaded file to a temporary location
-        #     shutil.copyfileobj(file.file, temp_file)
+        
+        document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
+        chat_engine.add_document(document)
 
-        cwd = pathlib.Path.cwd()
-        data_file_dir = cwd / "data"
+        # data_file_dir = pathlib.Path.cwd() / "data"
     except Exception as e:
         return TextSummary(
-            file_name=file.name, 
-            summary=f"There was an error on uploading the file: {e}"
+            file_name=file.filename,
+            text_category="",
+            summary=f"There was an error on uploading the file: {e}",
+            used_tokens=int(token_counter.total_llm_token_count),
         )
     finally:
-        file.file.close()
+        file.file.close() # do I need this (with statement)?
         
-    summary_str = summarize_from_file(file.filename)
-    print(summary_str)
+    logging.debug(document.text_summary)
     return TextSummary(
         file_name=file.filename,
-        summary= summary_str
+        text_category = document.text_category,
+        summary= document.text_summary,
+        used_tokens=token_counter.total_llm_token_count,
     )
 
-class QAState(BaseModel):
-    history: list[QAResponse] = Field(
-        default_factory=list,
-        description=(
-            "A place to record the history of questions and answers concerning the content of one given file."
-        ),
-    )
-    #tests_passing: bool = False
-
-@app.get("/qa_text")
-def run(question: str) -> str:
-    description = ("A chatbot. Users will ask questions concerning a given text. ")
-
-    qa = AIApplication(
-        name="Chatbot",
-        #state=QAState(),
-        #history=
-        description=f"""
-        You are a chatbot answering to to all questions concerning the content of a given
-        text file.
-        The text file has the name {"test2.txt"} and is located at {FILE_DIR}. Please make the embeddings for
-        the content of the text file only once and save them into a chroma vector database, which should be saved for later use in 
-        {FILE_DIR} .
-        You are only allowed to read or write files in the {FILE_DIR}. 
-        The user will give you instructions on what questions to answer. Make shure you always reuse the embeddings from the 
-        existing vector database as knowledgebase.
-        When you write the answers, you will need to ensure that the
-        user's expectations are met. Remember, you are an accurate and experianced author 
-        and you write unique and short answers aligned with the content of the given text file 
-        (which embeddings should be saved in the chroma vector database).
-        You should use friendly, easy to read language, but stay correct and focussed.
-        The answers should not have more than 10 sentences.
-        The last sentence should state if new embeddings were used or the embeddings of the chroma data base 
-        and the path and file name of the chroma database.
-        """, 
-        tools=[
-            marvin.tools.filesystem.ReadFile(root_dir=FILE_DIR),
-            marvin.tools.filesystem.WriteFile(root_dir=FILE_DIR),
-            marvin_QueryChroma(
-                name="chroma_db_text",
-                description="chroma data base to store the embeddings of the content of the given text"
-            ),
-            marvin.utilities.embeddings.create_openai_embeddings,
-            #marvin.tools.shell.Shell(
-            #require_confirmation=True, working_directory=FILE_DIR
-            #)
-        ], 
-        
-        )
-
-    #     
-    response = qa(question)
-    print(response)
-
-    # We'll return the response, along with the updated state.
-    return response.content

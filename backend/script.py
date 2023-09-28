@@ -1,7 +1,5 @@
 
-import os
-import certifi
-from dotenv import load_dotenv
+
 from llama_index import (
     VectorStoreIndex, 
     SimpleDirectoryReader,
@@ -29,11 +27,8 @@ from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 from marvin import ai_model
 from llama_index.bridge.pydantic import BaseModel, Field
 import pathlib
-
-import logging
-import sys
-
 import tiktoken
+import logging
 
 from document_categories import CATEGORY_LABELS
 
@@ -52,7 +47,7 @@ class AITextDocument:
         self.nodes = self.split_document_and_extract_metadata(llm_str)
         self.text_category = self.nodes[0].metadata["marvin_metadata"].get("text_category")
         self.text_summary: str = self.nodes[0].metadata["marvin_metadata"].get("description")
-        logging.debug(f"Number of used tokens: {token_counter.total_embedding_token_count}")
+        # logging.debug(f"Number of used tokens: {token_counter.total_embedding_token_count}")
         logging.debug(f"Category: {self.text_category}, Summary: {self.text_summary}")
 
     @classmethod
@@ -190,7 +185,26 @@ class CustomLlamaIndexChatEngineWrapper:
             callback_manager=self.callback_manager,
         )
 
+def set_up_chatbot():
+    token_counter = TokenCountingHandler(
+        tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
+    )
+    callback_manager = CallbackManager([token_counter])
+
+    return (
+        CustomLlamaIndexChatEngineWrapper(
+            callback_manager=callback_manager
+        ),
+        callback_manager,
+        token_counter,
+    )
+
 if __name__ == "__main__":
+    import os
+    import sys
+    import certifi
+    from dotenv import load_dotenv
+
     # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
     os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -200,15 +214,10 @@ if __name__ == "__main__":
     API_KEY = os.getenv('OPENAI_API_KEY')
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-    openai_log = "debug"
+    # openai_log = "debug"
     
-    token_counter = TokenCountingHandler(
-        tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
-    )
-    callback_manager = CallbackManager([token_counter])
+    chat_engine, callback_manager, token_counter = set_up_chatbot()
 
-    chat_engine = CustomLlamaIndexChatEngineWrapper(callback_manager=callback_manager)
-    
     try: 
         document = AITextDocument("test2.txt", "gpt-3.5-turbo", callback_manager)
         chat_engine.add_document(document)
