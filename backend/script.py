@@ -119,8 +119,7 @@ class CustomLlamaIndexChatEngineWrapper:
         #LlamaTextDocument(document_name, CustomLlamaIndexChatEngine.llm)
         self.vector_index = self._create_vector_index()
         #super().__init__()
-        self.chat_engine = self.create_chat_engine()
-        return 
+        self.chat_engine = self.create_chat_engine() 
         
 
     def _create_service_context(self):
