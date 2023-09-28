@@ -1,13 +1,6 @@
 # command to run: uvicorn fastapi_app:app --reload
-from tempfile import NamedTemporaryFile
-from typing import BinaryIO
 from fastapi import FastAPI, UploadFile
-from pydantic import BaseModel, Field
-from marvin import ai_fn, AIApplication, ai_model
-from marvin import settings as marvin_settings
-import marvin.tools.filesystem
-import marvin.tools.shell
-from marvin.tools.chroma import MultiQueryChroma as marvin_QueryChroma
+from pydantic import BaseModel
 
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
     
