@@ -39,7 +39,7 @@ class AITextDocument:
        given list and gives a short summary of the text based on the given llm_str. 
     """
 
-    FILE_DIR = pathlib.Path.cwd() / "data"
+    FILE_DIR = pathlib.Path(__file__).parent / "data"
 
     def __init__(self, document_name: str, llm_str: str, callback_manager: CallbackManager | None =None):
         self.callback_manager: CallbackManager | None = callback_manager

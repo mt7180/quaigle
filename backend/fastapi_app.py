@@ -3,11 +3,6 @@ from tempfile import NamedTemporaryFile
 from typing import BinaryIO
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel, Field
-from marvin import ai_fn, AIApplication, ai_model
-from marvin import settings as marvin_settings
-import marvin.tools.filesystem
-import marvin.tools.shell
-from marvin.tools.chroma import MultiQueryChroma as marvin_QueryChroma
 
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
     
@@ -66,15 +61,14 @@ async def upload_file(file: UploadFile | None = None):
     os.makedirs("data", exist_ok=True)
     
     token_counter.reset_counts()
-
+    cfd = pathlib.Path(__file__).parent
     try:     
-        with open(f"data/{file.filename}", "wb") as f:
+        with open(cfd / "data" / file.filename, "wb") as f:
             f.write(file.file.read())
         
         document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
         chat_engine.add_document(document)
 
-        # data_file_dir = pathlib.Path.cwd() / "data"
     except Exception as e:
         return TextSummary(
             file_name=file.filename,
