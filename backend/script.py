@@ -4,6 +4,8 @@ from llama_index import (
     VectorStoreIndex, 
     SimpleDirectoryReader,
     ServiceContext,
+    StorageContext,
+    load_index_from_storage,
     set_global_service_context,
     get_response_synthesizer,
 )
@@ -47,8 +49,6 @@ class AITextDocument:
         self.nodes = self.split_document_and_extract_metadata(llm_str)
         self.text_category = self.nodes[0].metadata["marvin_metadata"].get("text_category")
         self.text_summary: str = self.nodes[0].metadata["marvin_metadata"].get("description")
-        # logging.debug(f"Number of used tokens: {token_counter.total_embedding_token_count}")
-        logging.debug(f"Category: {self.text_category}, Summary: {self.text_summary}")
 
     @classmethod
     def _load_document(cls, document_name, log=True):
@@ -100,53 +100,65 @@ class AITextDocument:
 
 
 class CustomLlamaIndexChatEngineWrapper:
-
-    # system_prompt = f"""You are a chatbot that responds to all questions about the content of a given document, which is available in the form of embeddings in the given vector database. The user gives you instructions on which questions to answer. 
-    #     When you write the answers, you need to make sure that the user's expectations are met. Remember that you are an accurate and experienced writer 
-    #     and you write unique and short answers in the style of a {text_category} text. Don't add anything hallucinatory.
-    #     Use friendly, easy-to-read language, and if it is a technical or scientific text, please stay correct and focused.
-    #     Responses should be no longer than 10 sentences, unless the user explicitly specifies the number of sentences.
-    # """
+    
+    system_prompt: str = """You are a chatbot that responds to all questions about the given context. The user gives you instructions on which questions to answer. 
+    When you write the answers, you need to make sure that the user's expectations are met. Remember that you are an accurate and experienced writer 
+    and you write unique answers. Don't add anything hallucinatory.
+    Use friendly, easy-to-read language, and if it is a technical or scientific text, please stay correct and focused.
+    Responses should be no longer than 10 sentences, unless the user explicitly specifies the number of sentences.
+    """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
     llm = OpenAI(model=OPENAI_MODEL, temperature=0, max_tokens=512)
 
     def __init__(self, callback_manager=None):
+        self.cfd = pathlib.Path(__file__).parent
         self.callback_manager = callback_manager
+        self.text_category: str = "" # default, if no document is loaded yet
         self.service_context = self._create_service_context()
         set_global_service_context(self.service_context)
         self.documents = []
-        #LlamaTextDocument(document_name, CustomLlamaIndexChatEngine.llm)
-        self.vector_index = self._create_vector_index()
-        #super().__init__()
-        self.chat_engine = self.create_chat_engine()
-        return 
-        
 
+        if any(pathlib.Path(self.cfd / "storage").iterdir()):
+            self.storage_context = StorageContext.from_defaults(
+                persist_dir= str(self.cfd / "storage"),
+            )
+            self.vector_index = load_index_from_storage(storage_context=self.storage_context)
+        else:
+            self.vector_index = self._create_vector_index()
+        self.chat_engine = self.create_chat_engine() 
+        
     def _create_service_context(self):
-        return ServiceContext.from_defaults(
-            llm=CustomLlamaIndexChatEngineWrapper.llm, 
+        return ServiceContext.from_defaults( 
             chunk_size=1024, 
             chunk_overlap=152,
-            #system_prompt=system_prompt,
+            system_prompt=CustomLlamaIndexChatEngineWrapper.system_prompt,
             callback_manager=self.callback_manager,
         )
     
     def add_document(self, document:AITextDocument):
         self.documents.append(document)
         self._add_to_vector_index(document.nodes)
+        self.text_category = document.text_category # TODO: find mojority, if multiple docs are loaded
+        self.vector_index.storage_context.persist(persist_dir=self.cfd / "storage")
+    
+    # def empty_vector_store(self):
+    #     cfd = pathlib.Path(__file__).parent
+    #     self.vector_index.delete_nodes
 
     def _create_vector_index(self):
         #print(node. for doc in self.documents for node in doc.nodes)
         return VectorStoreIndex(
             [node for doc in self.documents for node in doc.nodes], # current use case: no docs availabe, so empty list []
-            service_context=self.service_context
+            service_context=self.service_context,
+            storage_context=self.storage_context,
         ) # openai api is called with whole text to make the embeddings
     
     def _add_to_vector_index(self, nodes):
         self.vector_index.insert_nodes(
             nodes, 
-            service_context=self.service_context) # is this enough or do I have to recreate the chat engine?
+            #service_context=self.service_context) # is this enough or do I have to recreate the chat engine?
+        )
 
     def _create_vector_index_retriever(self):
         vector_store_info = VectorStoreInfo(
@@ -211,7 +223,7 @@ if __name__ == "__main__":
 
     load_dotenv()
 
-    API_KEY = os.getenv('OPENAI_API_KEY')
+    #API_KEY = os.getenv('OPENAI_API_KEY')
     logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
     logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
     # openai_log = "debug"
@@ -233,6 +245,6 @@ if __name__ == "__main__":
     ]
     for question in questions:
         response = chat_engine.chat_engine.chat(question)
-        print(response.response)
+        print(response. response)
         logging.info(f"Number of used tokens: {token_counter.total_embedding_token_count}")
 

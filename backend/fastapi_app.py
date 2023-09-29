@@ -22,23 +22,24 @@ os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
 load_dotenv()
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 chat_engine, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
 
-class TextSummary(BaseModel):
+class TextSummaryModel(BaseModel):
     file_name: str
     text_category: str
     summary: str
     used_tokens: int
 
+class QuestionModel(BaseModel):
+    prompt: str
 
-class QAResponse(BaseModel):
-    # ai_answer: dict[str,str] = Field(
-    #     default_factory=dict, 
-    #     description="A mapping containing the user question to the ai answer."
-    # )
+
+class QAResponseModel(BaseModel):
     user_question: str
     ai_answer: str
     used_tokens: int
@@ -47,10 +48,10 @@ class QAResponse(BaseModel):
 # @app.on_event("startup")
 # def on_startup():
 
-@app.post("/upload", response_model=TextSummary)
+@app.post("/upload", response_model=TextSummaryModel)
 async def upload_file(file: UploadFile | None = None):
     if not file:
-        return TextSummary(
+        return TextSummaryModel(
             file_name="",
             text_category="",
             summary="No file was uploaded.",
@@ -70,32 +71,43 @@ async def upload_file(file: UploadFile | None = None):
         chat_engine.add_document(document)
 
     except Exception as e:
-        return TextSummary(
+        return TextSummaryModel(
             file_name=file.filename,
             text_category="",
-            summary=f"There was an error on uploading the file: {e}",
+            summary=f"There was an error on uploading the file: {e.args}",
             used_tokens=int(token_counter.total_llm_token_count),
         )
     finally:
         file.file.close() # do I need this (with statement)?
         
     logging.debug(document.text_summary)
-    return TextSummary(
+    return TextSummaryModel(
         file_name=file.filename,
-        text_category = document.text_category,
-        summary= document.text_summary,
+        text_category=document.text_category,
+        summary=document.text_summary,
         used_tokens=token_counter.total_llm_token_count,
     )
 
-@app.get("/qa_text", response_model=QAResponse)
-async def qa_text(question: str):
-    token_counter.reset_counts() 
-    response = chat_engine.chat_engine.chat(question)
+@app.post("/qa_text", response_model=QAResponseModel)
+async def qa_text(question: QuestionModel):
+    token_counter.reset_counts()
+    logging.debug(question.prompt)
+    response = chat_engine.chat_engine.chat(question.prompt)
     logging.debug(response.response)
 
-    return QAResponse(
-        #{question: response.response},
-        user_question= question,
-        ai_answer= response.response,
+    return QAResponseModel(
+        user_question= question.prompt,
+        ai_answer= str(response),
         used_tokens=token_counter.total_llm_token_count,
+    )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "fastapi_app:app",
+        host="0.0.0.0",
+        port=8000,
+        workers=1,
+        use_colors=True,
+        reload=True,
     )
