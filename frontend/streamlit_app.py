@@ -165,7 +165,7 @@ def display_sidemenu():
         ):
             _, c2, _ = st.columns((1, 6, 1))
             with c2:
-                temperature = st.slider('temperature', min_value=0, max_value=1)
+                temperature = st.slider('temperature', min_value=0.0, max_value=1.0,step=0.1)
                 st.session_state.temperature = float(temperature)
                 
         if st.button('Clear chat history', use_container_width=True):
