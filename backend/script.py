@@ -1,5 +1,6 @@
 
 
+import re
 from llama_index import (
     VectorStoreIndex, 
     SimpleDirectoryReader,
@@ -41,7 +42,6 @@ class AITextDocument:
        given list and gives a short summary of the text based on the given llm_str. 
     """
 
-    FILE_DIR = pathlib.Path(__file__).parent / "data"
     FILE_DIR = pathlib.Path(__file__).parent / "data"
 
     def __init__(self, document_name: str, llm_str: str, callback_manager: CallbackManager | None =None):
@@ -110,29 +110,34 @@ class CustomLlamaIndexChatEngineWrapper:
     """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
-    llm = OpenAI(model=OPENAI_MODEL, temperature=0, max_tokens=512)
+    
 
     def __init__(self, callback_manager=None):
         self.cfd = pathlib.Path(__file__).parent
         self.callback_manager = callback_manager
         self.text_category: str = "" # default, if no document is loaded yet
+        self.llm = OpenAI(
+            model=CustomLlamaIndexChatEngineWrapper.OPENAI_MODEL, 
+            temperature=0, 
+            max_tokens=512
+        )
         self.service_context = self._create_service_context()
         set_global_service_context(self.service_context)
         self.documents = []
-
         if any(pathlib.Path(self.cfd / "storage").iterdir()):
             self.storage_context = StorageContext.from_defaults(
-                persist_dir= str(self.cfd / "storage"),
+                persist_dir = str(self.cfd / "storage"),
             )
             self.vector_index = load_index_from_storage(storage_context=self.storage_context)
         else:
-            self.vector_index = self._create_vector_index()
+            self.vector_index = self.create_vector_index()
         self.chat_engine = self.create_chat_engine() 
         
     def _create_service_context(self):
         return ServiceContext.from_defaults( 
             chunk_size=1024, 
             chunk_overlap=152,
+            llm=self.llm,
             system_prompt=CustomLlamaIndexChatEngineWrapper.system_prompt,
             callback_manager=self.callback_manager,
         )
@@ -143,11 +148,14 @@ class CustomLlamaIndexChatEngineWrapper:
         self.text_category = document.text_category # TODO: find mojority, if multiple docs are loaded
         self.vector_index.storage_context.persist(persist_dir=self.cfd / "storage")
     
-    # def empty_vector_store(self):
-    #     cfd = pathlib.Path(__file__).parent
-    #     self.vector_index.delete_nodes
+    def empty_vector_store(self):
+        doc_ids = list(self.vector_index.ref_doc_info.keys())
+        for doc_id in doc_ids:
+            self.vector_index.delete_ref_doc(doc_id, delete_from_docstore=True)
+        self.vector_index.storage_context.persist(persist_dir=self.cfd / "storage")
+        self.documents.clear()
 
-    def _create_vector_index(self):
+    def create_vector_index(self):
         #print(node. for doc in self.documents for node in doc.nodes)
         return VectorStoreIndex(
             [node for doc in self.documents for node in doc.nodes], # current use case: no docs availabe, so empty list []
@@ -197,7 +205,15 @@ class CustomLlamaIndexChatEngineWrapper:
             verbose=True,
             callback_manager=self.callback_manager,
         )
+    
+    def clear_chat_history(self):
+        self.chat_engine.reset()
 
+    def update_temp(self, temperature):
+        # see https://gpt-index.readthedocs.io/en/v0.8.34/examples/llm/XinferenceLocalDeployment.html
+        self.vector_index.service_context.llm.__dict__.update({'temperature':temperature})
+        #self.llm.temperature=temperature
+        
 def set_up_chatbot():
     token_counter = TokenCountingHandler(
         tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
@@ -211,6 +227,7 @@ def set_up_chatbot():
         callback_manager,
         token_counter,
     )
+
 
 if __name__ == "__main__":
     import os
@@ -246,6 +263,6 @@ if __name__ == "__main__":
     ]
     for question in questions:
         response = chat_engine.chat_engine.chat(question)
-        print(response. response)
+        print(response.response)
         logging.info(f"Number of used tokens: {token_counter.total_embedding_token_count}")
 

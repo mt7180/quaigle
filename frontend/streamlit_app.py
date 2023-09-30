@@ -1,5 +1,4 @@
 # run ommand: streamlit run streamlit_app.py 
-
 import pathlib
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -62,10 +61,27 @@ def initialize_session(refresh_session=False):
             st.session_state.messages = []
         #if "counter" not in st.session_state:
             #st.session_state.counter = 0
-        #if "costs" not in st.session_state:
-            #st.session_state.costs = []
+        if "temperature" not in st.session_state:
+            st.session_state.temperature = 0
         if "total_tokens" not in st.session_state:
             st.session_state.total_tokens = []
+
+def clear_storage():
+    response = requests.get(os.path.join(API_URL,"clear_storage"))
+    if response.status_code == 200:
+        data = response.json()
+        return f"Success: {data['message']}"
+    else:
+        return st.error(f"Error: {response.status_code} - {response.text}")
+
+def clear_history():
+    st.session_state.messages.clear()
+    response = requests.get(os.path.join(API_URL,"clear_history"))
+    if response.status_code == 200:
+        data = response.json()
+        return f"Success: {data['message']}"
+    else:
+        return st.error(f"Error: {response.status_code} - {response.text}")
     
 
 def display_options_menu():
@@ -89,15 +105,15 @@ def uploader_callback():
         uploaded_file = st.session_state['file_uploader']
         with st.spinner("Waiting for response"):
             try:
-                s_response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
-                # print(s_response.json())
-                if s_response.status_code == 200:
-                    response_data = s_response.json()
+                response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
+                # print(response.json())
+                if response.status_code == 200:
+                    response_data = response.json()
                     #st.session_state.counter += 1
                     # print(response_data["summary"], st.session_state.counter)
                     post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
                 else:
-                    st.error(f"Error: {s_response.status_code}")
+                    st.error(f"Error: {response.status_code}")
             except Exception as e:
                 print(f"Exception occurred while uploading file to backend: {e.args}")
                 st.error(f"Error: {e}")
@@ -113,8 +129,7 @@ def display_sidemenu():
     col1, col2 = st.sidebar.columns(2)
     col1.markdown(
         """
-        - txt 
-        - pdf  
+        - txt  
         - html
         """
     )
@@ -122,25 +137,25 @@ def display_sidemenu():
         """
         - db 
         - sqlite  
-        - bla
         """
     )
     with st.sidebar.container():
+        success_message = st.empty()
         if uploaded_file := st.file_uploader(
             'dragndrop',
-            type=["txt","csv","pdf","sqlite","db","html" ],
+            type=["txt","sqlite","db" ],
             on_change=uploader_callback,
             key="file_uploader",
             label_visibility="collapsed"
         ):
-            st.success(f"File uploaded to backend")
-            
-        # else:
-        #     url = st.text_input('url',placeholder='OR enter url', label_visibility="collapsed")
-        #     # TODO: if url is entered deactivate file upload
+            success_message.success(f"File successfully uploaded")
+        
+        if  url := st.text_input('url',placeholder='OR enter url', label_visibility="collapsed"):
+            success_message.success(f"url successfully uploaded")
         add_vertical_space(1)
+        
         with stylable_container(
-            key="styled_container",
+            key="red_container",
             css_styles="""
                 {
                     background-color: #ffb499;
@@ -148,12 +163,15 @@ def display_sidemenu():
                 }
                 """,
         ):
-            add_vertical_space(1)
             _, c2, _ = st.columns((1, 6, 1))
             with c2:
                 temperature = st.slider('temperature', min_value=0, max_value=1)
-                max_tokens = st.slider("max tokens:",min_value=1000, max_value=4000,value=4000)
-
+                st.session_state.temperature = float(temperature)
+                
+        if st.button('Clear chat history', use_container_width=True):
+            success_message.success(clear_history())
+        if st.button('Clear knowledge base: texts/ urls', use_container_width=True):
+            success_message.success(clear_storage())
 
 @register_page(MAIN_PAGE)
 def questionai():
@@ -164,28 +182,23 @@ def questionai():
                 st.markdown(message["content"])
         
         if prompt := st.chat_input("-> Post questions regarding the content of your file, AI will answer..."):
-            # print(prompt)
-            #st.chat_message("user").markdown(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
             
-            with st.chat_message("assistant"):
-                response=""
-                message_placeholder = st.empty()
-                #message_placeholder.markdown(prompt)
-                
-                with st.spinner("Waiting for response"):
-                    #response = f"Echo: {prompt}" # TODO: connect to API response
-                    payload = {"prompt": prompt}
-                    response = requests.post(os.path.join(API_URL,"qa_text"), json=payload)
+            with st.spinner("Waiting for response"):
+                payload = {"prompt": prompt, "temperature": st.session_state.temperature}
+                response = requests.post(os.path.join(API_URL,"qa_text"), json=payload)
+                with st.chat_message("assistant"):
+                    message_placeholder = st.empty()
+                    ai_answer=""
                     if response.status_code == 200:
                         ai_answer = response.json().get("ai_answer", "Unknown response type")
                         message_placeholder.markdown(ai_answer)
                         st.session_state.messages.append({"role": "assistant", "content": ai_answer})
                     else:
-                        message_placeholder.error(f"Error: {response.status_code}")
-                    #st.markdown(response.)
+                        st.error(f"Error: {response.status_code}")
+                message_placeholder.markdown(ai_answer)
                 add_vertical_space(7)
         elif len(st.session_state.messages)==0:
             cfd = pathlib.Path(__file__).parent 
@@ -213,7 +226,7 @@ def main():
     #display_options_menu()
     #st.write('')
     MAIN_PAGE[st.session_state.selected_page]()
-        
+
 
 if __name__ == "__main__":
     main()
