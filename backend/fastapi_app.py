@@ -1,6 +1,4 @@
 # command to run: uvicorn fastapi_app:app --reload
-from tempfile import NamedTemporaryFile
-from typing import BinaryIO
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel, Field
 
