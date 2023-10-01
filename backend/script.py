@@ -41,7 +41,7 @@ class AITextDocument:
        given list and gives a short summary of the text based on the given llm_str. 
     """
 
-    FILE_DIR = pathlib.Path(__file__).parent / "data"
+    cfd = pathlib.Path(__file__).parent / "data"
 
     def __init__(self, document_name: str, llm_str: str, callback_manager: CallbackManager | None =None):
         self.callback_manager: CallbackManager | None = callback_manager
@@ -55,7 +55,7 @@ class AITextDocument:
         """loads only the data of the specified name"""
         return(
             SimpleDirectoryReader(
-                input_files=[str(AITextDocument.FILE_DIR / document_name)],
+                input_files=[str(AITextDocument.cfd / document_name)],
                 encoding="utf-8",
             ).load_data()[0]
         )
@@ -110,18 +110,18 @@ class CustomLlamaIndexChatEngineWrapper:
 
     OPENAI_MODEL = "gpt-3.5-turbo"
     llm = OpenAI(model=OPENAI_MODEL, temperature=0, max_tokens=512)
+    cfd = pathlib.Path(__file__).parent
 
     def __init__(self, callback_manager=None):
-        self.cfd = pathlib.Path(__file__).parent
         self.callback_manager = callback_manager
         self.text_category: str = "" # default, if no document is loaded yet
         self.service_context = self._create_service_context()
         set_global_service_context(self.service_context)
         self.documents = []
 
-        if any(pathlib.Path(self.cfd / "storage").iterdir()):
+        if any(pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "storage").iterdir()):
             self.storage_context = StorageContext.from_defaults(
-                persist_dir= str(self.cfd / "storage"),
+                persist_dir= str(CustomLlamaIndexChatEngineWrapper.cfd / "storage"),
             )
             self.vector_index = load_index_from_storage(storage_context=self.storage_context)
         else:
@@ -140,7 +140,9 @@ class CustomLlamaIndexChatEngineWrapper:
         self.documents.append(document)
         self._add_to_vector_index(document.nodes)
         self.text_category = document.text_category # TODO: find mojority, if multiple docs are loaded
-        self.vector_index.storage_context.persist(persist_dir=self.cfd / "storage")
+        self.vector_index.storage_context.persist(
+            persist_dir=CustomLlamaIndexChatEngineWrapper.cfd / "storage"
+        )
     
     # def empty_vector_store(self):
     #     cfd = pathlib.Path(__file__).parent
