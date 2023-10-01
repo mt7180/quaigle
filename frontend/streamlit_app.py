@@ -106,11 +106,13 @@ def display_options_menu():
 def make_request(route: str, ref_document: UploadFile | str):
     with st.spinner("Waiting for response"):
         try:
-            if type(ref_document)==str:
-                payload = {"url": ref_document}
-                response = requests.post(os.path.join(API_URL,route), payload=payload)
+            if type(ref_document) == str:
+                
+                payload = {"file": ref_document}
+                print(payload)
+                response = requests.post(os.path.join(API_URL,route), json=payload)
             else:
-                response = requests.post(os.path.join(API_URL,"upload"), files={"file": ref_document})
+                response = requests.post(os.path.join(API_URL,route), files={"file": ref_document})
 
             if response.status_code == 200:
                     response_data = response.json()
@@ -142,7 +144,7 @@ def uploader_callback():
         #         st.error(f"Error: {e}")
 def url_callback():
     if url := st.session_state.get("url_input"):
-        make_request("url_upload", url)
+        make_request("upload", url)
 
 def display_sidemenu():
     st.sidebar.title('Menu')

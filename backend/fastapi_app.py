@@ -15,6 +15,7 @@ import certifi
 # Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 from script import (
     AITextDocument, 
+    AIHtmlDocument,
     CustomLlamaIndexChatEngineWrapper, 
     set_up_chatbot,
 )
@@ -22,6 +23,7 @@ from script import (
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
+LLM_STR = "gpt-3.5-turbo"
 
 load_dotenv()
 openai_log = "debug"
@@ -43,6 +45,9 @@ class QuestionModel(BaseModel):
     prompt: str
     temperature: float
 
+class UploadModel(BaseModel):
+    file: UploadFile | str
+
 
 class QAResponseModel(BaseModel):
     user_question: str
@@ -54,40 +59,44 @@ class TextResponseModel(BaseModel):
 
 
 @app.post("/upload", response_model=TextSummaryModel)
-async def upload_file(file: UploadFile | None = None):
-    if not file:
+async def upload_file(upload: UploadModel):
+    if not upload:
         return TextSummaryModel(
             file_name="",
             text_category="",
-            summary="No file was uploaded.",
+            summary="No file/url was uploaded.",
             used_tokens=0,
         )
     
-    # Ensure that the shared data folder exists
-    os.makedirs("data", exist_ok=True)
-    
     token_counter.reset_counts()
     cfd = pathlib.Path(__file__).parent
-    try:     
-        with open(cfd / "data" / file.filename, "wb") as f:
-            f.write(file.file.read())
-        
-        document = AITextDocument(file.filename, "gpt-3.5-turbo", callback_manager)
+    try:
+        if type(upload.file) == str:
+            document = AIHtmlDocument(upload.file,LLM_STR,callback_manager)
+            file_name = upload.file
+        else:
+            # Ensure that the data folder exists
+            os.makedirs("data", exist_ok=True)
+            with open(cfd / "data" / upload.file.filename, "wb") as f:
+                f.write(upload.file.read())
+            document = AITextDocument(upload.file.filename, LLM_STR, callback_manager)
+            file_name = upload.file.filename
         chat_bot.add_document(document)
 
     except Exception as e:
         return TextSummaryModel(
-            file_name=file.filename,
+            file_name=file_name,
             text_category="",
             summary=f"There was an error on uploading the file: {e.args}",
             used_tokens=int(token_counter.total_llm_token_count),
         )
     finally:
-        file.file.close() # do I need this (with statement)?
+        if type(upload.file) != str:
+            upload.file.close() # do I need this (with statement)?
         
     #logging.debug(document.text_summary)
     return TextSummaryModel(
-        file_name=file.filename,
+        file_name=file_name,
         text_category=document.text_category,
         summary=document.text_summary,
         used_tokens=token_counter.total_llm_token_count,
