@@ -2,6 +2,7 @@
 
 import re
 from llama_index import (
+    SimpleWebPageReader,
     VectorStoreIndex, 
     SimpleDirectoryReader,
     ServiceContext,
@@ -52,11 +53,14 @@ class AITextDocument:
         self.text_summary: str = self.nodes[0].metadata["marvin_metadata"].get("description")
 
     @classmethod
-    def _load_document(cls, document_name, log=True):
-        """loads only the data of the specified name"""
+    def _load_document(cls, identifier: str):
+        """loads only the data of the specified name
+
+        identifier: name of the text file as str
+        """
         return(
             SimpleDirectoryReader(
-                input_files=[str(AITextDocument.FILE_DIR / document_name)],
+                input_files=[str(AITextDocument.FILE_DIR / identifier)],
                 encoding="utf-8",
             ).load_data()[0]
         )
@@ -98,7 +102,28 @@ class AITextDocument:
         description: str = Field(..., description="a brief summary of the document content")
         text_category: str = Field(...,description=f"best matching text category from the following list: {str(CATEGORY_LABELS)}")
     
+class AIHtmlDocument(AITextDocument):
 
+    # def __init__(self, url: str, llm_str: str, callback_manager: CallbackManager | None =None):
+    #     self.callback_manager: CallbackManager | None = callback_manager
+    #     self.document = self._load_html(url)
+    #     self.nodes = self.split_document_and_extract_metadata(llm_str)
+    #     self.text_category = self.nodes[0].metadata["marvin_metadata"].get("text_category")
+    #     self.text_summary: str = self.nodes[0].metadata["marvin_metadata"].get("description")
+
+    
+    @classmethod
+    def _load_document(cls, identifier: str):
+        """loads the data of an html file at a given url
+
+        identifier: url of the html file as str
+        """
+        return(
+            SimpleWebPageReader(
+                html_to_text=True,
+            ).load_data([identifier])[0]   
+        )
+    
 
 class CustomLlamaIndexChatEngineWrapper:
     
