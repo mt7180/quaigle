@@ -5,7 +5,8 @@ html, body, [class*="css"] {
 
 .block-container,
 .reportview-container,
-.main {
+.main 
+{
     padding-top: 5px;
     padding-bottom: 0;
 }
@@ -37,6 +38,6 @@ hr {
 }
 
 
-header {
+/* header {
     visibility: hidden;
-}
+} */
