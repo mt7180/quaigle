@@ -1,3 +1,4 @@
+black
 fastapi==0.99.1
 ipykernel==6.25.2
 ipython==8.15.0
@@ -7,6 +8,7 @@ marvin==1.4.0
 pre-commit
 pydantic==1.10.12
 requests==2.31.0
+ruff
 streamlit==1.26.0
 streamlit-extras==0.3.2
 streamlit-option-menu==0.3.6
