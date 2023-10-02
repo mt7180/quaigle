@@ -1,5 +1,6 @@
 # run ommand: streamlit run streamlit_app.py 
 import pathlib
+from fastapi import UploadFile
 import streamlit as st
 from streamlit_option_menu import option_menu
 from streamlit_extras.add_vertical_space import add_vertical_space
@@ -65,6 +66,8 @@ def initialize_session(refresh_session=False):
             st.session_state.temperature = 0
         if "total_tokens" not in st.session_state:
             st.session_state.total_tokens = []
+        if "url" not in st.session_state:
+            st.session_state["url"] = ""
 
 def clear_storage():
     response = requests.get(os.path.join(API_URL,"clear_storage"))
@@ -100,24 +103,48 @@ def display_options_menu():
         st.session_state.selected_page = selected_page.lower()
 
 
-def uploader_callback():
-    if st.session_state['file_uploader'] is not None:
-        uploaded_file = st.session_state['file_uploader']
-        with st.spinner("Waiting for response"):
-            try:
-                response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
-                # print(response.json())
-                if response.status_code == 200:
+def make_request(route: str, ref_document: UploadFile | str):
+    with st.spinner("Waiting for response"):
+        try:
+            if type(ref_document) == str:
+                
+                payload = {"file": ref_document}
+                print(payload)
+                response = requests.post(os.path.join(API_URL,route), json=payload)
+            else:
+                response = requests.post(os.path.join(API_URL,route), files={"file": ref_document})
+
+            if response.status_code == 200:
                     response_data = response.json()
                     #st.session_state.counter += 1
                     # print(response_data["summary"], st.session_state.counter)
                     post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
-                else:
-                    st.error(f"Error: {response.status_code}")
-            except Exception as e:
-                print(f"Exception occurred while uploading file to backend: {e.args}")
-                st.error(f"Error: {e}")
+            else:
+                st.error(f"Error: {response.status_code}")
+        except Exception as e:
+            print(f"Exception occurred while uploading file to backend: {e.args}")
+            st.error(f"Error: {e}")
 
+def uploader_callback():
+    if uploaded_file := st.session_state.get("file_uploader"):
+        make_request("upload", uploaded_file)
+        # with st.spinner("Waiting for response"):
+        #     try:
+        #         response = requests.post(os.path.join(API_URL,"upload"), files={"file": uploaded_file})
+        #         # print(response.json())
+        #         if response.status_code == 200:
+        #             response_data = response.json()
+        #             #st.session_state.counter += 1
+        #             # print(response_data["summary"], st.session_state.counter)
+        #             post_ai_message_to_chat(response_data.get("summary", "Unknown response"))
+        #         else:
+        #             st.error(f"Error: {response.status_code}")
+        #     except Exception as e:
+        #         print(f"Exception occurred while uploading file to backend: {e.args}")
+        #         st.error(f"Error: {e}")
+def url_callback():
+    if url := st.session_state.get("url_input"):
+        make_request("upload", url)
 
 def display_sidemenu():
     st.sidebar.title('Menu')
@@ -149,10 +176,18 @@ def display_sidemenu():
             label_visibility="collapsed"
         ):
             success_message.success(f"File successfully uploaded")
+
         
-        if  url := st.text_input('url',placeholder='OR enter url', label_visibility="collapsed"):
+        if url := st.text_input(
+            "text:",
+            placeholder='OR enter url',
+            key="url_input",
+            label_visibility="collapsed",
+            on_change=url_callback, 
+            
+        ):
             success_message.success(f"url successfully uploaded")
-        add_vertical_space(1)
+        # add_vertical_space(1)
         
         with stylable_container(
             key="red_container",
