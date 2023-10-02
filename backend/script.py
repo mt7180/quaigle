@@ -1,6 +1,5 @@
 
 
-import re
 from llama_index import (
     SimpleWebPageReader,
     VectorStoreIndex, 
