@@ -60,7 +60,7 @@ class AITextDocument:
         """
         return(
             SimpleDirectoryReader(
-                input_files=[str(AITextDocument.cfd / document_name)],
+                input_files=[str(AITextDocument.cfd / identifier)],
                 encoding="utf-8",
             ).load_data()[0]
         )
