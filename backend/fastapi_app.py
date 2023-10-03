@@ -1,5 +1,5 @@
 # command to run: uvicorn fastapi_app:app --reload
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 import logging
@@ -45,10 +45,6 @@ class QuestionModel(BaseModel):
     temperature: float
 
 
-class UploadModel(BaseModel):
-    file: UploadFile | str
-
-
 class QAResponseModel(BaseModel):
     user_question: str
     ai_answer: str
@@ -60,41 +56,40 @@ class TextResponseModel(BaseModel):
 
 
 @app.post("/upload", response_model=TextSummaryModel)
-async def upload_file(upload: UploadModel):
-    if not upload:
-        return TextSummaryModel(
-            file_name="",
-            text_category="",
-            summary="No file/url was uploaded.",
-            used_tokens=0,
-        )
-
+async def upload_file(
+    upload_file: UploadFile | None = None, upload_url: str = Form("")
+):
     token_counter.reset_counts()
     cfd = pathlib.Path(__file__).parent
     try:
-        if isinstance(upload.file) == str:
-            document = AIHtmlDocument(upload.file, LLM_STR, callback_manager)
-            file_name = upload.file
-        else:
-            # Ensure that the data folder exists
+        if upload_file:
+            if upload_url:
+                raise HTTPException(
+                    status_code=400, detail="You can not provide both, file and URL."
+                )
             os.makedirs("data", exist_ok=True)
-            with open(cfd / "data" / upload.file.filename, "wb") as f:
-                f.write(upload.file.read())
-            document = AITextDocument(upload.file.filename, LLM_STR, callback_manager)
-            file_name = upload.file.filename
-        chat_bot.add_document(document)
+            file_name = upload_file.filename
+            with open(cfd / "data" / file_name, "wb") as f:
+                f.write(await upload_file.read())
+            document = AITextDocument(file_name, LLM_STR, callback_manager)
+        elif upload_url:
+            document = AIHtmlDocument(upload_url, LLM_STR, callback_manager)
+            file_name = upload_url
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="You must provide either a file or URL to upload.",
+            )
 
     except Exception as e:
         return TextSummaryModel(
-            file_name=file_name,
+            file_name="",
             text_category="",
             summary=f"There was an error on uploading the file: {e.args}",
             used_tokens=int(token_counter.total_llm_token_count),
         )
-    finally:
-        if isinstance(upload.file) != str:
-            upload.file.close()  # do I need this (with statement)?
 
+    chat_bot.add_document(document)
     # logging.debug(document.text_summary)
     return TextSummaryModel(
         file_name=file_name,

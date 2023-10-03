@@ -112,17 +112,23 @@ def display_options_menu():
         st.session_state.selected_page = selected_page.lower()
 
 
-def make_request(route: str, ref_document: UploadFile | str):
+def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = None):
     with st.spinner("Waiting for response"):
         try:
-            if isinstance(ref_document) == str:
-                payload = {"file": ref_document}
-                print(payload)
-                response = requests.post(os.path.join(API_URL, route), json=payload)
-            else:
+            if url:
+                data = {"upload_url": url}
+                files = {"upload_file": ("", None)}
                 response = requests.post(
-                    os.path.join(API_URL, route), files={"file": ref_document}
+                    os.path.join(API_URL, route), data=data, files=files
                 )
+            elif uploaded_file:
+                files = {"upload_file": (uploaded_file.name, uploaded_file)}
+                data = {"upload_url": ""}
+                response = requests.post(
+                    os.path.join(API_URL, route), files=files, data=data
+                )
+            else:
+                raise Exception
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -139,8 +145,9 @@ def make_request(route: str, ref_document: UploadFile | str):
 
 
 def uploader_callback():
-    if uploaded_file := st.session_state.get("file_uploader"):
-        make_request("upload", uploaded_file)
+    if st.session_state["file_uploader"] is not None:
+        uploaded_file = st.session_state["file_uploader"]
+        make_request("upload", None, uploaded_file)
         # with st.spinner("Waiting for response"):
         #     try:
         #         response = requests.post(
