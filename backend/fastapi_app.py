@@ -2,21 +2,22 @@
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel
 
-#from llama_index.callbacks import CallbackManager, TokenCountingHandler
-    
+# from llama_index.callbacks import CallbackManager, TokenCountingHandler
+
 import logging
 import sys
 from dotenv import load_dotenv
 import pathlib
 import os
 import certifi
-#import tiktoken
+
+# import tiktoken
 
 # Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 from script import (
-    AITextDocument, 
+    AITextDocument,
     AIHtmlDocument,
-    CustomLlamaIndexChatEngineWrapper, 
+    # CustomLlamaIndexChatEngineWrapper,
     set_up_chatbot,
 )
 
@@ -35,15 +36,18 @@ chat_bot, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
 
+
 class TextSummaryModel(BaseModel):
     file_name: str
     text_category: str
     summary: str
     used_tokens: int
 
+
 class QuestionModel(BaseModel):
     prompt: str
     temperature: float
+
 
 class UploadModel(BaseModel):
     file: UploadFile | str
@@ -53,6 +57,7 @@ class QAResponseModel(BaseModel):
     user_question: str
     ai_answer: str
     used_tokens: int
+
 
 class TextResponseModel(BaseModel):
     message: str
@@ -67,12 +72,12 @@ async def upload_file(upload: UploadModel):
             summary="No file/url was uploaded.",
             used_tokens=0,
         )
-    
+
     token_counter.reset_counts()
     cfd = pathlib.Path(__file__).parent
     try:
-        if type(upload.file) == str:
-            document = AIHtmlDocument(upload.file,LLM_STR,callback_manager)
+        if isinstance(upload.file) == str:
+            document = AIHtmlDocument(upload.file, LLM_STR, callback_manager)
             file_name = upload.file
         else:
             # Ensure that the data folder exists
@@ -91,10 +96,10 @@ async def upload_file(upload: UploadModel):
             used_tokens=int(token_counter.total_llm_token_count),
         )
     finally:
-        if type(upload.file) != str:
-            upload.file.close() # do I need this (with statement)?
-        
-    #logging.debug(document.text_summary)
+        if isinstance(upload.file) != str:
+            upload.file.close()  # do I need this (with statement)?
+
+    # logging.debug(document.text_summary)
     return TextSummaryModel(
         file_name=file_name,
         text_category=document.text_category,
@@ -102,21 +107,23 @@ async def upload_file(upload: UploadModel):
         used_tokens=token_counter.total_llm_token_count,
     )
 
+
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
     token_counter.reset_counts()
-    #logging.debug(question.prompt)
+    # logging.debug(question.prompt)
     chat_bot.update_temp(question.temperature)
     response = chat_bot.chat_engine.chat(
         question.prompt,
     )
-    #logging.debug(response.response)
+    # logging.debug(response.response)
 
     return QAResponseModel(
-        user_question= question.prompt,
-        ai_answer= str(response),
+        user_question=question.prompt,
+        ai_answer=str(response),
         used_tokens=token_counter.total_llm_token_count,
     )
+
 
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
@@ -126,6 +133,7 @@ async def clear_storage():
         return TextResponseModel(message=f"Error: {e.args}")
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
+
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
     try:
@@ -134,8 +142,10 @@ async def clear_history():
         return TextResponseModel(message=f"Error: {e.args}")
     return TextResponseModel(message="Chat history succesfully cleared")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "fastapi_app:app",
         host="0.0.0.0",
