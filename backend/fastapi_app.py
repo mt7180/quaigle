@@ -2,16 +2,12 @@
 from fastapi import FastAPI, UploadFile
 from pydantic import BaseModel
 
-# from llama_index.callbacks import CallbackManager, TokenCountingHandler
-
 import logging
 import sys
 from dotenv import load_dotenv
 import pathlib
 import os
 import certifi
-
-# import tiktoken
 
 # Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 from script import (
