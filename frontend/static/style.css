@@ -13,6 +13,7 @@ html, body, [class*="css"] {
 
 [data-testid="stFileUploader"],
 [data-testid="stTextInput"]>div>div>input,
+[data-testid="stForm"],
 [data-testid="stChatInput"],
 [data-testid="baseButton-secondary"] {
     border: 1px solid black;
