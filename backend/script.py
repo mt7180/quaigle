@@ -23,7 +23,6 @@ from llama_index.chat_engine.condense_question import CondenseQuestionChatEngine
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.memory import ChatMemoryBuffer
 
-# from llama_index.indices.vector_store.retrievers import VectorIndexRetriever
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
