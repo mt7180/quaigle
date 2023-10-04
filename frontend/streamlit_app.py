@@ -11,7 +11,6 @@ from PIL import Image
 
 from utils.helpers import register_page
 
-# from utils.request_wrapper import Client, APIResponse
 
 DEBUG = True
 API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
@@ -128,7 +127,7 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
                     os.path.join(API_URL, route), files=files, data=data
                 )
             else:
-                raise Exception
+                raise FileNotFoundError
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -139,34 +138,14 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
                 )
             else:
                 st.error(f"Error: {response.status_code}")
-        except Exception as e:
-            print(f"Exception occurred while uploading file to backend: {e.args}")
-            st.error(f"Error: {e}")
+        except FileNotFoundError:
+            st.error("No context is given. Please provide a url or upload a file")
 
 
 def uploader_callback():
     if st.session_state["file_uploader"] is not None:
         uploaded_file = st.session_state["file_uploader"]
         make_request("upload", None, uploaded_file)
-        # with st.spinner("Waiting for response"):
-        #     try:
-        #         response = requests.post(
-        #           os.path.join(API_URL,"upload"),
-        #           files={"file": uploaded_file}
-        #         )
-        #         # print(response.json())
-        #         if response.status_code == 200:
-        #             response_data = response.json()
-        #             #st.session_state.counter += 1
-        #             # print(response_data["summary"], st.session_state.counter)
-        #             post_ai_message_to_chat(
-        #               response_data.get("summary", "Unknown response")
-        #             )
-        #         else:
-        #             st.error(f"Error: {response.status_code}")
-        #     except Exception as e:
-        #         print(f"Exception occurred while uploading file to backend: {e.args}")
-        #         st.error(f"Error: {e}")
 
 
 def url_callback():
@@ -213,7 +192,6 @@ def display_sidemenu():
             on_change=url_callback,
         ):
             success_message.success("url successfully uploaded")
-        # add_vertical_space(1)
 
         with stylable_container(
             key="red_container",
@@ -302,8 +280,6 @@ def main():
     set_page_settings()
     initialize_session()
     display_sidemenu()
-    # display_options_menu()
-    # st.write('')
     MAIN_PAGE[st.session_state.selected_page]()
 
 
