@@ -103,12 +103,15 @@ class AITextDocument:
     @ai_model
     class AIDocument(BaseModel):
         description: str = Field(
-            ..., description="A brief summary of the document content in 5 sentences."
+            ...,
+            description="""A brief summary of the main content of the
+            document.
+            """,
         )
         text_category: str = Field(
             ...,
             description=f"""best matching text category from the following list: 
-                {str(CATEGORY_LABELS)}
+            {str(CATEGORY_LABELS)}
             """,
         )
 
@@ -128,16 +131,15 @@ class AIHtmlDocument(AITextDocument):
 
 
 class CustomLlamaIndexChatEngineWrapper:
-    system_prompt: str = """You are a chatbot that responds to all questions about the 
-    given context.
-    The user gives you instructions on which questions to answer. 
+    system_prompt: str = """You are a chatbot that responds to all questions about 
+    the given context. The user gives you instructions on which questions to answer. 
     When you write the answers, you need to make sure that the user's expectations are 
-    met. 
-    Remember that you are an accurate and experienced writer 
+    met. Remember that you are an accurate and experienced writer 
     and you write unique answers. Don't add anything hallucinatory.
     Use friendly, easy-to-read language, and if it is a technical or scientific text, 
-    please stay correct and focused. Responses should be no longer than 10 sentences, 
-    unless the user explicitly specifies the number of sentences.
+    please stay correct and focused.
+    Responses should be no longer than 10 sentences, unless the user explicitly 
+    specifies the number of sentences.
     """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
