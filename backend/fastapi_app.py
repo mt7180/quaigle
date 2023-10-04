@@ -19,7 +19,7 @@ from script import (
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
-LLM_STRING = "gpt-3.5-turbo"
+LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
 openai_log = "debug"
@@ -74,9 +74,9 @@ async def upload_file(
             file_name = upload_file.filename
             with open(cfd / "data" / file_name, "wb") as f:
                 f.write(await upload_file.read())
-            document = AITextDocument(file_name, LLM_STRING, callback_manager)
+            document = AITextDocument(file_name, LLM_NAME, callback_manager)
         elif upload_url:
-            document = AIHtmlDocument(upload_url, LLM_STRING, callback_manager)
+            document = AIHtmlDocument(upload_url, LLM_NAME, callback_manager)
             file_name = upload_url
         else:
             raise HTTPException(
