@@ -103,12 +103,15 @@ class AITextDocument:
     @ai_model
     class AIDocument(BaseModel):
         description: str = Field(
-            ..., description="A brief summary of the document content in 5 sentences."
+            ...,
+            description="""A brief summary of the main content of the
+            document.
+            """,
         )
         text_category: str = Field(
             ...,
             description=f"""best matching text category from the following list: 
-                {str(CATEGORY_LABELS)}
+            {str(CATEGORY_LABELS)}
             """,
         )
 

@@ -1,6 +1,7 @@
 # command to run: uvicorn fastapi_app:app --reload
 from fastapi import FastAPI, Form, HTTPException, UploadFile
 from pydantic import BaseModel
+from requests.exceptions import MissingSchema
 
 # from llama_index.callbacks import CallbackManager, TokenCountingHandler
 
@@ -65,6 +66,9 @@ async def upload_file(
 ):
     token_counter.reset_counts()
     cfd = pathlib.Path(__file__).parent
+    message = ""
+    text_category = ""
+    file_name = ""
     try:
         if upload_file:
             if upload_url:
@@ -84,22 +88,21 @@ async def upload_file(
                 status_code=400,
                 detail="You must provide either a file or URL to upload.",
             )
-
-    except Exception as e:
-        return TextSummaryModel(
-            file_name="",
-            text_category="",
-            summary=f"There was an error on uploading the file: {e.args}",
-            used_tokens=int(token_counter.total_llm_token_count),
-        )
-
-    chat_bot.add_document(document)
-
-    # logging.debug(document.text_summary)
+        chat_bot.add_document(document)
+        message = document.text_summary
+        text_category = document.text_category
+    except HTTPException as e:
+        message = (f"There was an error on uploading your text/ url: {e.args}",)
+    except MissingSchema as e:
+        message = f"There was a problem with the provided url: {e.args}"
+    except OSError as e:
+        message = f"""There was an unexpected OSError on saving the file: 
+        {e.args}, please ask the admin for write permissions
+        """
     return TextSummaryModel(
         file_name=file_name,
-        text_category=document.text_category,
-        summary=document.text_summary,
+        text_category=text_category,
+        summary=message,
         used_tokens=token_counter.total_llm_token_count,
     )
 
@@ -123,19 +126,13 @@ async def qa_text(question: QuestionModel):
 
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
-    try:
-        chat_bot.empty_vector_store()
-    except Exception as e:
-        return TextResponseModel(message=f"Error: {e.args}")
+    chat_bot.empty_vector_store()
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
-    try:
-        chat_bot.clear_chat_history()
-    except Exception as e:
-        return TextResponseModel(message=f"Error: {e.args}")
+    chat_bot.clear_chat_history()
     return TextResponseModel(message="Chat history succesfully cleared")
 
 
