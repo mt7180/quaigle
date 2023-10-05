@@ -23,7 +23,6 @@ from llama_index.chat_engine.condense_question import CondenseQuestionChatEngine
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.memory import ChatMemoryBuffer
 
-# from llama_index.indices.vector_store.retrievers import VectorIndexRetriever
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
@@ -52,11 +51,11 @@ class AITextDocument:
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
-        self.text_category = (
-            self.nodes[0].metadata["marvin_metadata"].get("text_category")
+        self.text_category = ",".join(
+            node.metadata["marvin_metadata"].get("text_category") for node in self.nodes
         )
-        self.text_summary: str = (
-            self.nodes[0].metadata["marvin_metadata"].get("description")
+        self.text_summary: str = "".join(
+            node.metadata["marvin_metadata"].get("description") for node in self.nodes
         )
 
     @classmethod
@@ -103,12 +102,15 @@ class AITextDocument:
     @ai_model
     class AIDocument(BaseModel):
         description: str = Field(
-            ..., description="A brief summary of the document content in 5 sentences."
+            ...,
+            description="""A brief summary of the main content of the
+            document.
+            """,
         )
         text_category: str = Field(
             ...,
             description=f"""best matching text category from the following list: 
-                {str(CATEGORY_LABELS)}
+            {str(CATEGORY_LABELS)}
             """,
         )
 
@@ -128,14 +130,15 @@ class AIHtmlDocument(AITextDocument):
 
 
 class CustomLlamaIndexChatEngineWrapper:
-    system_prompt: str = """You are a chatbot that responds to all questions about the
-    given context. The user gives you instructions on which questions to answer. 
-    When you write the answers, you need to make sure that the user's expectations
-    are met. Remember that you are an accurate and experienced writer 
+    system_prompt: str = """You are a chatbot that responds to all questions about 
+    the given context. The user gives you instructions on which questions to answer. 
+    When you write the answers, you need to make sure that the user's expectations are 
+    met. Remember that you are an accurate and experienced writer 
     and you write unique answers. Don't add anything hallucinatory.
-    Use friendly, easy-to-read language, and if it is a technical or scientific text,
-    please stay correct and focused. Responses should be no longer than 10 sentences, 
-    unless the user explicitly specifies the number of sentences.
+    Use friendly, easy-to-read language, and if it is a technical or scientific text, 
+    please stay correct and focused.
+    Responses should be no longer than 10 sentences, unless the user explicitly 
+    specifies the number of sentences.
     """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
@@ -207,7 +210,6 @@ class CustomLlamaIndexChatEngineWrapper:
     def _add_to_vector_index(self, nodes):
         self.vector_index.insert_nodes(
             nodes,
-            # is this enough or do I have to recreate the chat engine?
             # service_context=self.service_context)
         )
 
@@ -218,8 +220,8 @@ class CustomLlamaIndexChatEngineWrapper:
                 MetadataInfo(
                     name="text_category",
                     type="str",
-                    description="""best matching text category 
-                        (e.g. Technical, Biagraphy, Sience Fiction, ... )
+                    description="""best matching text category (e.g. Technical, 
+                        Biagraphy, Sience Fiction, ... )
                     """,
                 ),
                 MetadataInfo(
@@ -304,8 +306,8 @@ if __name__ == "__main__":
     questions = [
         "Where did Einstein live?",
         "What did he work on?",  # does memory work (-> he)?
-        # correct response: There is no information provided in the context about
-        # Einstein's favorite food.
+        # correct response: There is no information provided in the context
+        # about Einstein's favorite food.
         "What was his favorite food?",
     ]
     for question in questions:

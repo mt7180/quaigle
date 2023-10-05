@@ -11,7 +11,6 @@ from PIL import Image
 
 from utils.helpers import register_page
 
-# from utils.request_wrapper import Client, APIResponse
 
 DEBUG = True
 API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
@@ -67,8 +66,9 @@ def initialize_session(refresh_session=False):
             st.session_state["url"] = ""
 
 
-def clear_storage():
-    response = requests.get(os.path.join(API_URL, "clear_storage"))
+def clear_history():
+    st.session_state.messages.clear()
+    response = requests.get(os.path.join(API_URL, "clear_history"))
     if response.status_code == 200:
         data = response.json()
         return f"Success: {data['message']}"
@@ -76,9 +76,11 @@ def clear_storage():
         return st.error(f"Error: {response.status_code} - {response.text}")
 
 
-def clear_history():
-    st.session_state.messages.clear()
-    response = requests.get(os.path.join(API_URL, "clear_history"))
+def clear_storage():
+    st.session_state["url"] = ""
+    st.session_state.pop("file_uploader")
+    clear_history()
+    response = requests.get(os.path.join(API_URL, "clear_storage"))
     if response.status_code == 200:
         data = response.json()
         return f"Success: {data['message']}"
@@ -112,17 +114,23 @@ def display_options_menu():
         st.session_state.selected_page = selected_page.lower()
 
 
-def make_request(route: str, ref_document: UploadFile | str):
+def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = None):
     with st.spinner("Waiting for response"):
         try:
-            if isinstance(ref_document, str):
-                payload = {"file": ref_document}
-                print(payload)
-                response = requests.post(os.path.join(API_URL, route), json=payload)
-            else:
+            if url:
+                data = {"upload_url": url}
+                files = {"upload_file": ("", None)}
                 response = requests.post(
-                    os.path.join(API_URL, route), files={"file": ref_document}
+                    os.path.join(API_URL, route), data=data, files=files
                 )
+            elif uploaded_file:
+                files = {"upload_file": (uploaded_file.name, uploaded_file)}
+                data = {"upload_url": ""}
+                response = requests.post(
+                    os.path.join(API_URL, route), files=files, data=data
+                )
+            else:
+                raise FileNotFoundError
 
             if response.status_code == 200:
                 response_data = response.json()
@@ -133,37 +141,19 @@ def make_request(route: str, ref_document: UploadFile | str):
                 )
             else:
                 st.error(f"Error: {response.status_code}")
-        except Exception as e:
-            print(f"Exception occurred while uploading file to backend: {e.args}")
-            st.error(f"Error: {e}")
+        except FileNotFoundError:
+            st.error("No context is given. Please provide a url or upload a file")
 
 
 def uploader_callback():
-    if uploaded_file := st.session_state.get("file_uploader"):
-        make_request("upload", uploaded_file)
-        # with st.spinner("Waiting for response"):
-        #     try:
-        #         response = requests.post(os.path.join(
-        #           API_URL,"upload"), files={"file": uploaded_file}
-        #         )
-        #         # print(response.json())
-        #         if response.status_code == 200:
-        #             response_data = response.json()
-        #             #st.session_state.counter += 1
-        #             # print(response_data["summary"], st.session_state.counter)
-        #             post_ai_message_to_chat(
-        #               response_data.get("summary", "Unknown response")
-        #             )
-        #         else:
-        #             st.error(f"Error: {response.status_code}")
-        #     except Exception as e:
-        #         print(f"Exception occurred while uploading file to backend: {e.args}")
-        #         st.error(f"Error: {e}")
+    if st.session_state["file_uploader"] is not None:
+        uploaded_file = st.session_state["file_uploader"]
+        make_request("upload", None, uploaded_file)
 
 
 def url_callback():
     if url := st.session_state.get("url_input"):
-        make_request("upload", url)
+        make_request("upload", url, None)
 
 
 def display_sidemenu():
@@ -205,7 +195,6 @@ def display_sidemenu():
             on_change=url_callback,
         ):
             success_message.success("url successfully uploaded")
-        # add_vertical_space(1)
 
         with stylable_container(
             key="red_container",
@@ -227,6 +216,7 @@ def display_sidemenu():
             success_message.success(clear_history())
         if st.button("Clear knowledge base: texts/ urls", use_container_width=True):
             success_message.success(clear_storage())
+            st.experimental_rerun()
 
 
 @register_page(MAIN_PAGE)
@@ -344,8 +334,6 @@ def main():
     set_page_settings()
     initialize_session()
     display_sidemenu()
-    # display_options_menu()
-    # st.write('')
     MAIN_PAGE[st.session_state.selected_page]()
 
 

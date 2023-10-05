@@ -1,11 +1,11 @@
 # command to run: uvicorn fastapi_app:app --reload
 from typing import List
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, UploadFile, Form
 from llama_index import ServiceContext
 from pydantic import BaseModel, Field
 
 # from llama_index.callbacks import CallbackManager, TokenCountingHandler
-
+from requests.exceptions import MissingSchema
 import logging
 import sys
 from dotenv import load_dotenv
@@ -13,20 +13,16 @@ import pathlib
 import os
 import certifi
 
-# import tiktoken
-
-# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 from script import (
     AITextDocument,
     AIHtmlDocument,
-    # CustomLlamaIndexChatEngineWrapper,
     set_up_chatbot,
 )
 
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
-LLM_STR = "gpt-3.5-turbo"
+LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
 openai_log = "debug"
@@ -34,6 +30,7 @@ openai_log = "debug"
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
+# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 chat_bot, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
@@ -49,10 +46,6 @@ class TextSummaryModel(BaseModel):
 class QuestionModel(BaseModel):
     prompt: str
     temperature: float
-
-
-class UploadModel(BaseModel):
-    file: UploadFile | str
 
 
 class QAResponseModel(BaseModel):
@@ -93,46 +86,48 @@ class MultipleChoiceTest(BaseModel):
 
 
 @app.post("/upload", response_model=TextSummaryModel)
-async def upload_file(upload: UploadModel):
-    if not upload:
-        return TextSummaryModel(
-            file_name="",
-            text_category="",
-            summary="No file/url was uploaded.",
-            used_tokens=0,
-        )
-
+async def upload_file(
+    upload_file: UploadFile | None = None, upload_url: str = Form("")
+):
     token_counter.reset_counts()
     cfd = pathlib.Path(__file__).parent
+    message = ""
+    text_category = ""
+    file_name = ""
     try:
-        if isinstance(upload.file, str):
-            document = AIHtmlDocument(upload.file, LLM_STR, callback_manager)
-            file_name = upload.file
-        else:
-            # Ensure that the data folder exists
+        if upload_file:
+            if upload_url:
+                raise HTTPException(
+                    status_code=400, detail="You can not provide both, file and URL."
+                )
             os.makedirs("data", exist_ok=True)
-            with open(cfd / "data" / upload.file.filename, "wb") as f:
-                f.write(upload.file.read())
-            document = AITextDocument(upload.file.filename, LLM_STR, callback_manager)
-            file_name = upload.file.filename
+            file_name = upload_file.filename
+            with open(cfd / "data" / file_name, "wb") as f:
+                f.write(await upload_file.read())
+            document = AITextDocument(file_name, LLM_NAME, callback_manager)
+        elif upload_url:
+            document = AIHtmlDocument(upload_url, LLM_NAME, callback_manager)
+            file_name = upload_url
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="You must provide either a file or URL to upload.",
+            )
         chat_bot.add_document(document)
-
-    except Exception as e:
-        return TextSummaryModel(
-            file_name=file_name,
-            text_category="",
-            summary=f"There was an error on uploading the file: {e.args}",
-            used_tokens=int(token_counter.total_llm_token_count),
-        )
-    finally:
-        if not isinstance(upload.file, str):
-            upload.file.close()  # do I need this (with statement)?
-
-    # logging.debug(document.text_summary)
+        message = document.text_summary
+        text_category = document.text_category
+    except HTTPException as e:
+        message = (f"There was an error on uploading your text/ url: {e.args}",)
+    except MissingSchema as e:
+        message = f"There was a problem with the provided url: {e.args}"
+    except OSError as e:
+        message = f"""There was an unexpected OSError on saving the file: 
+        {e.args}, please ask the admin for write permissions
+        """
     return TextSummaryModel(
         file_name=file_name,
-        text_category=document.text_category,
-        summary=document.text_summary,
+        text_category=text_category,
+        summary=message,
         used_tokens=token_counter.total_llm_token_count,
     )
 
@@ -156,19 +151,15 @@ async def qa_text(question: QuestionModel):
 
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
-    try:
-        chat_bot.empty_vector_store()
-    except Exception as e:
-        return TextResponseModel(message=f"Error: {e.args}")
+    chat_bot.empty_vector_store()
+    # logging.DEBUG("vector store cleared...")
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
-    try:
-        chat_bot.clear_chat_history()
-    except Exception as e:
-        return TextResponseModel(message=f"Error: {e.args}")
+    chat_bot.clear_chat_history()
+    # logging.DEBUG("chat history cleared...")
     return TextResponseModel(message="Chat history succesfully cleared")
 
 
