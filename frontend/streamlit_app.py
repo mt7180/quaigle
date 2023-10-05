@@ -1,5 +1,6 @@
 # run ommand: streamlit run streamlit_app.py
 import pathlib
+import random
 from fastapi import UploadFile
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -64,6 +65,8 @@ def initialize_session(refresh_session=False):
             st.session_state.total_tokens = []
         if "url" not in st.session_state:
             st.session_state["url"] = ""
+        if "question_data" not in st.session_state:
+            st.session_state["question_data"] = []
 
 
 def clear_history():
@@ -114,7 +117,14 @@ def display_options_menu():
         st.session_state.selected_page = selected_page.lower()
 
 
-def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = None):
+def make_get_request(route: str):
+    return requests.get(os.path.join(API_URL, route)).json()
+
+
+# def make_post_request(route:str, data):
+def post_data_to_backend(
+    route: str, url: str = "", uploaded_file: UploadFile | None = None
+):
     with st.spinner("Waiting for response"):
         try:
             if url:
@@ -148,12 +158,12 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
 def uploader_callback():
     if st.session_state["file_uploader"] is not None:
         uploaded_file = st.session_state["file_uploader"]
-        make_request("upload", None, uploaded_file)
+        post_data_to_backend("upload", None, uploaded_file)
 
 
 def url_callback():
     if url := st.session_state.get("url_input"):
-        make_request("upload", url, None)
+        post_data_to_backend("upload", url, None)
 
 
 def display_sidemenu():
@@ -267,57 +277,42 @@ def questionai():
 @register_page(MAIN_PAGE)
 def quizme():
     with st.container():
-        # st.text('Quiz')
-
-        # Define the list of questions and answers
-        questions = [
-            {
-                "question": "What is the capital of France?",
-                "options": ["London", "Berlin", "Paris"],
-                "correct_answer": 2,
-            },
-            {
-                "question": "What is 2 + 2?",
-                "options": ["3", "4", "5"],
-                "correct_answer": 1,
-            },
-            {
-                "question": "Which planet is known as the Red Planet?",
-                "options": ["Earth", "Mars", "Venus"],
-                "correct_answer": 1,
-            },
-            {
-                "question": "What is the largest mammal in the world?",
-                "options": ["Elephant", "Blue Whale", "Giraffe"],
-                "correct_answer": 1,
-            },
-            {
-                "question": "Which gas do plants absorb from the atmosphere?",
-                "options": ["Oxygen", "Nitrogen", "Carbon Dioxide"],
-                "correct_answer": 2,
-            },
-        ]
-
         st.markdown("### A Quizz for You")
-        score_placeholder = st.empty()
         st.session_state.score = 0
-        for i, question_data in enumerate(questions):
-            question = question_data["question"]
-            options = ["Please Select an answer:"] + question_data[
-                "options"
-            ]  # ).insert(0, "Please select:")
-            correct_answer = question_data["correct_answer"]
-            st.markdown(f"##### Question {i + 1}: {question}")
+
+        if st.button("Generate a Quiz", use_container_width=True):
+            response = make_get_request("quizz").get("questions")
+            for question in response:
+                answer_options = [
+                    question["correct_answer"],
+                    question["wrong_answer_1"],
+                    question["wrong_answer_2"],
+                ]
+                random.shuffle(answer_options)
+                st.session_state["question_data"].append(
+                    {
+                        "question_txt": question["question"],
+                        "correct_answer": question["correct_answer"],
+                        "answer_options": answer_options,
+                    }
+                )
+
+        score_placeholder = st.empty()
+        for question in st.session_state["question_data"]:
+            st.markdown(f"##### Question: {question['question_txt']}")
             user_answer = st.radio(
-                "Select an answer:", options, label_visibility="collapsed"
+                "Select an answer:",
+                ["Please Select an answer:", *question["answer_options"]],
+                label_visibility="collapsed",
             )
 
-            if user_answer == options[correct_answer + 1]:
+            if user_answer == question["correct_answer"]:
                 st.session_state.score += 1
 
-        score_placeholder.success(
-            f"You answered {st.session_state.score} questions correct!"
-        )
+        if st.session_state["score"] > 0:
+            score_placeholder.success(
+                f"You answered {st.session_state.score} questions correct!"
+            )
 
 
 @register_page(MAIN_PAGE)

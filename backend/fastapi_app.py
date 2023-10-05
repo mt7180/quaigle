@@ -163,19 +163,16 @@ async def clear_history():
     return TextResponseModel(message="Chat history succesfully cleared")
 
 
-@app.get("/quizz")
+@app.get("/quizz", response_model=MultipleChoiceTest)
 def get_quizz():
     from llama_index.output_parsers import LangchainOutputParser
-
-    # https://gpt-index.readthedocs.io/en/stable/examples/query_engine/pydantic_query_engine.html
-    # https://gpt-index.readthedocs.io/en/stable/examples/output_parsing/guidance_pydantic_program.html
-
     from langchain.output_parsers import PydanticOutputParser
     from llama_index.prompts.default_prompts import (
         DEFAULT_TEXT_QA_PROMPT_TMPL,
         DEFAULT_REFINE_PROMPT_TMPL,
     )
     from llama_index.prompts import PromptTemplate
+    from llama_index.response import Response
 
     vector_index = chat_bot.vector_index
 
@@ -197,51 +194,14 @@ def get_quizz():
         refine_template=refine_prompt,
     )
 
-    response = question_query_engine.query(
+    response: Response = question_query_engine.query(
         """Please create a MultipleChoiceTest of 3 interesting and unique 
         MultipleChoiceQuestion about the main subject of the given context.
         """
     )
 
-    # # Construct sub-question query engine
-    # query_engine_tools = [
-    #     QueryEngineTool(
-    #         query_engine=info_query_engine,
-    #         metadata=ToolMetadata(
-    #             name="article_info",
-    #             description="""Provides information about the specific subject
-    #               of the article
-    #             """,
-    #         ),
-    #     ),
-    #     QueryEngineTool(
-    #         query_engine=question_query_engine,
-    #         metadata=ToolMetadata(
-    #             name="Multiple_Choice_Question",
-    #             description="""Provides a multiple choice question about a given
-    #             subject  of the article""",
-    #         ),
-    #     ),
-    # ]
-
-    # s_engine = SubQuestionQueryEngine.from_defaults(
-    #     #question_gen=question_gen,
-    #     query_engine_tools=query_engine_tools,
-    #     #response_synthesizer = get_response_synthesizer(
-    #           response_mode=ResponseMode.COMPACT
-    #     )
-    # )
-
-    # # # # Query the sub-questions
-    # response =  s_engine.query(
-    #     """Please create 2 interesting and unique MultipleCoiceQuestions about the
-    #      main subject of the given context.
-    #     """
-    # )
-    # Problem: subqueryengine has no output parser ...
-
-    print(str(response))
-    return response
+    return output_parser.parse(response.response)
+    # return response.response_txt
 
 
 if __name__ == "__main__":
