@@ -23,7 +23,6 @@ from llama_index.chat_engine.condense_question import CondenseQuestionChatEngine
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.memory import ChatMemoryBuffer
 
-# from llama_index.indices.vector_store.retrievers import VectorIndexRetriever
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
@@ -52,11 +51,11 @@ class AITextDocument:
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
-        self.text_category = (
-            self.nodes[0].metadata["marvin_metadata"].get("text_category")
+        self.text_category = ",".join(
+            node.metadata["marvin_metadata"].get("text_category") for node in self.nodes
         )
-        self.text_summary: str = (
-            self.nodes[0].metadata["marvin_metadata"].get("description")
+        self.text_summary: str = "".join(
+            node.metadata["marvin_metadata"].get("description") for node in self.nodes
         )
 
     @classmethod
@@ -213,7 +212,6 @@ class CustomLlamaIndexChatEngineWrapper:
         self.vector_index.insert_nodes(
             nodes,
             # service_context=self.service_context)
-            # # is this enough or do I have to recreate the chat engine?
         )
 
     def _create_vector_index_retriever(self):
@@ -309,9 +307,9 @@ if __name__ == "__main__":
     questions = [
         "Where did Einstein live?",
         "What did he work on?",  # does memory work (-> he)?
-        "What was his favorite food?",
         # correct response: There is no information provided in the context
         # about Einstein's favorite food.
+        "What was his favorite food?",
     ]
     for question in questions:
         response = chat_engine.chat_engine.chat(question)

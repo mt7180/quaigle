@@ -66,8 +66,9 @@ def initialize_session(refresh_session=False):
             st.session_state["url"] = ""
 
 
-def clear_storage():
-    response = requests.get(os.path.join(API_URL, "clear_storage"))
+def clear_history():
+    st.session_state.messages.clear()
+    response = requests.get(os.path.join(API_URL, "clear_history"))
     if response.status_code == 200:
         data = response.json()
         return f"Success: {data['message']}"
@@ -75,9 +76,11 @@ def clear_storage():
         return st.error(f"Error: {response.status_code} - {response.text}")
 
 
-def clear_history():
-    st.session_state.messages.clear()
-    response = requests.get(os.path.join(API_URL, "clear_history"))
+def clear_storage():
+    st.session_state["url"] = ""
+    st.session_state.pop("file_uploader")
+    clear_history()
+    response = requests.get(os.path.join(API_URL, "clear_storage"))
     if response.status_code == 200:
         data = response.json()
         return f"Success: {data['message']}"
@@ -150,7 +153,7 @@ def uploader_callback():
 
 def url_callback():
     if url := st.session_state.get("url_input"):
-        make_request("upload", url)
+        make_request("upload", url, None)
 
 
 def display_sidemenu():
@@ -213,6 +216,7 @@ def display_sidemenu():
             success_message.success(clear_history())
         if st.button("Clear knowledge base: texts/ urls", use_container_width=True):
             success_message.success(clear_storage())
+            st.experimental_rerun()
 
 
 @register_page(MAIN_PAGE)

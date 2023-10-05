@@ -10,7 +10,6 @@ import pathlib
 import os
 import certifi
 
-# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 from script import (
     AITextDocument,
     AIHtmlDocument,
@@ -20,7 +19,7 @@ from script import (
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
-LLM_STR = "gpt-3.5-turbo"
+LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
 openai_log = "debug"
@@ -28,6 +27,7 @@ openai_log = "debug"
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
+# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
 chat_bot, callback_manager, token_counter = set_up_chatbot()
 
 app = FastAPI()
@@ -74,9 +74,9 @@ async def upload_file(
             file_name = upload_file.filename
             with open(cfd / "data" / file_name, "wb") as f:
                 f.write(await upload_file.read())
-            document = AITextDocument(file_name, LLM_STR, callback_manager)
+            document = AITextDocument(file_name, LLM_NAME, callback_manager)
         elif upload_url:
-            document = AIHtmlDocument(upload_url, LLM_STR, callback_manager)
+            document = AIHtmlDocument(upload_url, LLM_NAME, callback_manager)
             file_name = upload_url
         else:
             raise HTTPException(
@@ -122,12 +122,14 @@ async def qa_text(question: QuestionModel):
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
     chat_bot.empty_vector_store()
+    # logging.DEBUG("vector store cleared...")
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
     chat_bot.clear_chat_history()
+    # logging.DEBUG("chat history cleared...")
     return TextResponseModel(message="Chat history succesfully cleared")
 
 
