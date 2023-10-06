@@ -118,14 +118,14 @@ def display_options_menu():
 
 
 def make_get_request(route: str):
-    return requests.get(os.path.join(API_URL, route)).json()
+    return requests.get(os.path.join(API_URL, route))
 
 
 # def make_post_request(route:str, data):
 def post_data_to_backend(
     route: str, url: str = "", uploaded_file: UploadFile | None = None
 ):
-    with st.spinner("Waiting for response"):
+    with st.spinner("Waiting for openai API response"):
         try:
             if url:
                 data = {"upload_url": url}
@@ -268,7 +268,8 @@ def questionai():
         elif len(st.session_state.messages) == 0:
             cfd = pathlib.Path(__file__).parent
             image = Image.open(cfd / "static" / "main_picture3.png")
-            st.image(
+            _, center, _ = st.columns((1, 5, 1))
+            center.image(
                 image,
                 caption=None,
             )
@@ -277,27 +278,29 @@ def questionai():
 @register_page(MAIN_PAGE)
 def quizme():
     with st.container():
-        st.markdown("### A Quizz for You")
+        st.markdown("### A Quiz for You")
         st.session_state.score = 0
+        message_placeholder = st.empty()
+        if st.button("Generate a Quiz"):
+            response = make_get_request("quizz")
+            if response.status_code == 200:
+                for question in response.json().get("questions"):
+                    answer_options = [
+                        question["correct_answer"],
+                        question["wrong_answer_1"],
+                        question["wrong_answer_2"],
+                    ]
+                    random.shuffle(answer_options)
+                    st.session_state["question_data"].append(
+                        {
+                            "question_txt": question["question"],
+                            "correct_answer": question["correct_answer"],
+                            "answer_options": answer_options,
+                        }
+                    )
+            else:
+                message_placeholder.error(response.json().get("detail"))
 
-        if st.button("Generate a Quiz", use_container_width=True):
-            response = make_get_request("quizz").get("questions")
-            for question in response:
-                answer_options = [
-                    question["correct_answer"],
-                    question["wrong_answer_1"],
-                    question["wrong_answer_2"],
-                ]
-                random.shuffle(answer_options)
-                st.session_state["question_data"].append(
-                    {
-                        "question_txt": question["question"],
-                        "correct_answer": question["correct_answer"],
-                        "answer_options": answer_options,
-                    }
-                )
-
-        score_placeholder = st.empty()
         for question in st.session_state["question_data"]:
             st.markdown(f"##### Question: {question['question_txt']}")
             user_answer = st.radio(
@@ -310,8 +313,16 @@ def quizme():
                 st.session_state.score += 1
 
         if st.session_state["score"] > 0:
-            score_placeholder.success(
+            message_placeholder.success(
                 f"You answered {st.session_state.score} questions correct!"
+            )
+        if not st.session_state["question_data"]:
+            cfd = pathlib.Path(__file__).parent
+            image = Image.open(cfd / "static" / "Hippo.png")
+            _, center, _ = st.columns((2, 4, 2))
+            center.image(
+                image,
+                caption=None,
             )
 
 

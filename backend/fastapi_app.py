@@ -85,6 +85,10 @@ class MultipleChoiceTest(BaseModel):
     questions: List[MultipleChoiceQuestion]
 
 
+class ErrorResponse(BaseModel):
+    detail: str
+
+
 @app.post("/upload", response_model=TextSummaryModel)
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
@@ -163,7 +167,14 @@ async def clear_history():
     return TextResponseModel(message="Chat history succesfully cleared")
 
 
-@app.get("/quizz", response_model=MultipleChoiceTest)
+@app.get(
+    "/quizz",
+    # response_model=MultipleChoiceTest,
+    responses={
+        200: {"model": MultipleChoiceTest},
+        400: {"model": ErrorResponse},
+    },
+)
 def get_quizz():
     from llama_index.output_parsers import LangchainOutputParser
     from langchain.output_parsers import PydanticOutputParser
@@ -177,7 +188,10 @@ def get_quizz():
     vector_index = chat_bot.vector_index
 
     if not vector_index.ref_doc_info:
-        raise HTTPException(detail="No context provided")
+        raise HTTPException(
+            status_code=400,
+            detail="No context provided, please provide a url or a text file!",
+        )
 
     lc_output_parser = PydanticOutputParser(pydantic_object=MultipleChoiceTest)
     output_parser = LangchainOutputParser(lc_output_parser)
