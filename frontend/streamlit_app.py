@@ -139,6 +139,9 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
                 post_ai_message_to_chat(
                     response_data.get("summary", "Unknown response")
                 )
+                st.session_state.total_tokens.append(
+                    response_data.get("used_tokens", 0)
+                )
             else:
                 st.error(f"Error: {response.status_code}")
         except FileNotFoundError:
@@ -244,8 +247,12 @@ def questionai():
                     message_placeholder = st.empty()
                     ai_answer = ""
                     if response.status_code == 200:
-                        ai_answer = response.json().get(
+                        response_data = response.json()
+                        ai_answer = response_data.get(
                             "ai_answer", "Unknown response type"
+                        )
+                        st.session_state.total_tokens.append(
+                            response_data.get("used_tokens", 0)
                         )
                         message_placeholder.markdown(ai_answer)
                         st.session_state.messages.append(
@@ -272,8 +279,19 @@ def quizme():
 
 @register_page(MAIN_PAGE)
 def statistics():
+    import pandas as pd
+
     with st.container():
-        st.text("Statics")
+        st.markdown("### Used API Tokens per Request of your Current Session")
+        st.markdown("(Usage not persisted)")
+        _, center, _ = st.columns((1, 5, 1))
+        chart_data = pd.DataFrame({"Used API Tokens": st.session_state.total_tokens})
+        center.bar_chart(
+            data=chart_data,
+            color="#D3DCE5",
+            y="Used API Tokens",
+            use_container_width=False,
+        )
 
 
 def post_ai_message_to_chat(message):
