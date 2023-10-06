@@ -7,6 +7,8 @@ from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.stylable_container import stylable_container
 import requests
 import os
+import sys
+import logging
 from PIL import Image
 
 from utils.helpers import register_page
@@ -17,6 +19,9 @@ API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
+
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 def stick_navbar():
@@ -134,6 +139,7 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
 
             if response.status_code == 200:
                 response_data = response.json()
+                logging.info(f"upload response data: {response_data}")
                 # st.session_state.counter += 1
                 # print(response_data["summary"], st.session_state.counter)
                 post_ai_message_to_chat(
