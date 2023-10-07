@@ -4,7 +4,7 @@ import sys
 from langchain.chat_models import ChatOpenAI
 from langchain.utilities import SQLDatabase
 from langchain.schema.output_parser import StrOutputParser
-from langchain.schema.runnable import RunnableLambda, RunnableMap
+from langchain.schema.runnable import RunnableLambda, RunnableMap, RunnablePassthrough
 from langchain.prompts import ChatPromptTemplate
 
 # from langchain_experimental.sql import SQLDatabaseChain
@@ -19,9 +19,9 @@ import os
 load_dotenv()
 API_KEY = os.getenv("OPENAI_API_KEY")
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-openai_log = "debug"
+# openai_log = "debug"
 
 # workaround for mac to solve SSL: CERTIFICATE_VERIFY_FAILED Error
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
@@ -37,61 +37,49 @@ def get_schema(_):
 
 
 def run_query(working_dict):
+    logging.debug(working_dict["query"])
     return db.run(working_dict["query"])
 
-
-prompt1 = ChatPromptTemplate.from_template(
-    """Based on the table schema below, write a SQL query that would answer 
-    the user's question:
-    {schema}
-
-    Question: {question}
-    SQL Query:"""
-)
 
 query_generator = (
     RunnableMap(
         {"schema": RunnableLambda(get_schema), "question": itemgetter("question")}
     )
-    | prompt1
+    | ChatPromptTemplate.from_template(
+        """Based on the table schema below, write a SQL query that would answer 
+        the user's question:
+        {schema}
+
+        Question: {question}
+        SQL Query:"""
+    )
     | llm.bind(stop=["\nSQLResult:"])
     | StrOutputParser()
+    | {"query": RunnablePassthrough()}
 )
 
-prompt2 = ChatPromptTemplate.from_template(
-    """Based on the question the sql query and the sql response, 
-    write a natural language response:
 
-    Question: {question}
-    SQL Query: {query}
-    SQL Response: {response}"""
-)
+chain = (
+    query_generator
+    | {"response": RunnableLambda(run_query), "question": RunnablePassthrough()}
+    | ChatPromptTemplate.from_template(
+        """Based on the question and the sql response, 
+        write a natural language response:
 
-full_chain = (
-    RunnableMap(
-        {
-            "question": itemgetter("question"),
-            "query": query_generator,
-        }
+        Question: {question}
+        SQL Response: {response}"""
     )
-    | {
-        "question": itemgetter("question"),
-        "query": itemgetter("query"),
-        "response": RunnableLambda(
-            run_query
-        ),  # same as "response": lambda x: db.run(x["query"]),
-    }
-    | prompt2
     | llm
 )
-response = full_chain.invoke(
+
+ai_response = chain.invoke(
     {
         "question": """What is the name of the user who wrote the largest number of 
         helpful reviews for amazon?
         """
     }
 )
-print(response)
+print(ai_response.content)
 
 
 # if __name__ == "__main__":
