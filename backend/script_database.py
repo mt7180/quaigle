@@ -30,59 +30,58 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
 db = SQLDatabase.from_uri("sqlite:///data/database.sqlite")
 logging.debug(db.get_table_info())
-# provide OpenAI access to data in specific database (in this case: kaggle Amazon
-# database about customers' reviews and their helpfulness)
-# db = SQLDatabase.from_uri("sqlite:///data/database.sqlite")
-# db_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True, use_query_checker=True)
 
 
 def get_schema(_):
     return db.get_table_info()
 
 
-def run_query(query):
-    return db.run(query)
+def run_query(working_dict):
+    return db.run(working_dict["query"])
 
 
-inputs = {"schema": RunnableLambda(get_schema), "question": itemgetter("question")}
+prompt1 = ChatPromptTemplate.from_template(
+    """Based on the table schema below, write a SQL query that would answer 
+    the user's question:
+    {schema}
 
-template = """Based on the table schema below, write a SQL query that would answer 
-the user's question:
-{schema}
-
-Question: {question}
-SQL Query:"""
-prompt = ChatPromptTemplate.from_template(template)
-
-sql_response = (
-    RunnableMap(inputs) | prompt | llm.bind(stop=["\nSQLResult:"]) | StrOutputParser()
+    Question: {question}
+    SQL Query:"""
 )
 
-# print(sql_response.invoke({"question": "How many employees are there?"}))
+query_generator = (
+    RunnableMap(
+        {"schema": RunnableLambda(get_schema), "question": itemgetter("question")}
+    )
+    | prompt1
+    | llm.bind(stop=["\nSQLResult:"])
+    | StrOutputParser()
+)
 
-template = """Based on the table schema below, question, sql query, and sql response, 
-write a natural language response:
-{schema}
+prompt2 = ChatPromptTemplate.from_template(
+    """Based on the question the sql query and the sql response, 
+    write a natural language response:
 
-Question: {question}
-SQL Query: {query}
-SQL Response: {response}"""
-prompt_response = ChatPromptTemplate.from_template(template)
+    Question: {question}
+    SQL Query: {query}
+    SQL Response: {response}"""
+)
 
 full_chain = (
     RunnableMap(
         {
             "question": itemgetter("question"),
-            "query": sql_response,
+            "query": query_generator,
         }
     )
     | {
-        "schema": RunnableLambda(get_schema),
         "question": itemgetter("question"),
         "query": itemgetter("query"),
-        "response": lambda x: db.run(x["query"]),
+        "response": RunnableLambda(
+            run_query
+        ),  # same as "response": lambda x: db.run(x["query"]),
     }
-    | prompt_response
+    | prompt2
     | llm
 )
 response = full_chain.invoke(
