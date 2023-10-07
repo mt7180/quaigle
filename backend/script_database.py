@@ -27,59 +27,67 @@ logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 
-llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
-db = SQLDatabase.from_uri("sqlite:///data/database.sqlite")
-logging.debug(db.get_table_info())
+
+class AIDataBase:
+    def __init__(self, db):
+        self.db = db
+
+    def get_schema(self, _):
+        return self.db.get_table_info()
+
+    def run_query(self, working_dict):
+        logging.debug(working_dict["query"])
+        return self.db.run(working_dict["query"])
+
+    def ask_a_question(self, question: str):
+        llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+        logging.debug(db.get_table_info())
+
+        query_generator = (
+            RunnableMap(
+                {
+                    "schema": RunnableLambda(self.get_schema),
+                    "question": itemgetter("question"),
+                }
+            )
+            | ChatPromptTemplate.from_template(
+                """Based on the table schema below, write a SQL query that would answer 
+                the user's question:
+                {schema}
+
+                Question: {question}
+                SQL Query:"""
+            )
+            | llm.bind(stop=["\nSQLResult:"])
+            | StrOutputParser()
+            | {"query": RunnablePassthrough()}
+        )
+
+        chain = (
+            query_generator
+            | {
+                "response": RunnableLambda(self.run_query),
+                "question": RunnablePassthrough(),
+            }
+            | ChatPromptTemplate.from_template(
+                """Based on the question and the sql response, 
+                write a natural language response:
+
+                Question: {question}
+                SQL Response: {response}"""
+            )
+            | llm
+        )
+
+        return chain.invoke({"question": question}).content
 
 
-def get_schema(_):
-    return db.get_table_info()
+if __name__ == "__main__":
+    db = SQLDatabase.from_uri("sqlite:///data/database.sqlite")
 
-
-def run_query(working_dict):
-    logging.debug(working_dict["query"])
-    return db.run(working_dict["query"])
-
-
-query_generator = (
-    RunnableMap(
-        {"schema": RunnableLambda(get_schema), "question": itemgetter("question")}
-    )
-    | ChatPromptTemplate.from_template(
-        """Based on the table schema below, write a SQL query that would answer 
-        the user's question:
-        {schema}
-
-        Question: {question}
-        SQL Query:"""
-    )
-    | llm.bind(stop=["\nSQLResult:"])
-    | StrOutputParser()
-    | {"query": RunnablePassthrough()}
-)
-
-
-chain = (
-    query_generator
-    | {"response": RunnableLambda(run_query), "question": RunnablePassthrough()}
-    | ChatPromptTemplate.from_template(
-        """Based on the question and the sql response, 
-        write a natural language response:
-
-        Question: {question}
-        SQL Response: {response}"""
-    )
-    | llm
-)
-
-ai_response = chain.invoke(
-    {
-        "question": """What is the name of the user who wrote the largest number of 
+    quaigle_db = AIDataBase(db)
+    question = """What is the name of the user who wrote the largest number of 
         helpful reviews for amazon?
         """
-    }
-)
-print(ai_response.content)
 
-
-# if __name__ == "__main__":
+    print(quaigle_db.ask_a_question(question))
