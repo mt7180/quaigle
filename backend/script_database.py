@@ -1,5 +1,6 @@
 # https://python.langchain.com/docs/expression_language/cookbook/sql_db
 import logging
+import re
 import sys
 from langchain.chat_models import ChatOpenAI
 from langchain.utilities import SQLDatabase
@@ -41,7 +42,10 @@ class AIDataBase(SQLDatabase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.category = "database"
-        self.summary = self.get_table_info()
+        self.summary = (
+            "Table Info: "
+            + re.sub(r"/\*((.|\n)*?)\*/", "", self.get_table_info()).strip()
+        )
 
     def get_schema(self, _):
         return self.get_table_info()
@@ -97,13 +101,11 @@ class AIDataBase(SQLDatabase):
 class DataChatBotWrapper:
     def __init__(self, callback_manager: CustomTokenCounter):
         self.data_category: str = "database"
-        self.summary: str = ""
         self.token_callback = callback_manager
         self.document: AIDataBase = None
 
     def add_document(self, document) -> None:
         self.document = document
-        self.summary = document.get_table_info()
 
     def clear_chat_history(self) -> str:
         return "No chat history available for database"
@@ -120,7 +122,7 @@ class DataChatBotWrapper:
         return self.document.ask_a_question(question, self.token_callback)
 
 
-def set_up_chatbot():
+def set_up_database_chatbot():
     token_counter = CustomTokenCounter()
     return (
         DataChatBotWrapper(callback_manager=token_counter),
@@ -142,14 +144,17 @@ if __name__ == "__main__":
     os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
     os.environ["SSL_CERT_FILE"] = certifi.where()
 
-    chat_engine, callback_manager, token_counter = set_up_chatbot()
+    chat_engine, callback_manager, token_counter = set_up_database_chatbot()
 
     document: AIDataBase = AIDataBase.from_uri("sqlite:///data/database.sqlite")
+    print("________")
+    print(document.summary)
+
     chat_engine.add_document(document)
 
     question = """What is the name of the user who wrote the largest number of 
         helpful reviews for amazon?
         """
-
+    print(document.summary)
     print(chat_engine.answer_question(question))
     logging.debug(f"Number of used tokens: {token_counter.total_llm_token_count}")

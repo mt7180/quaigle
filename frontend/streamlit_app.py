@@ -277,7 +277,17 @@ def statistics():
 
 
 def post_ai_message_to_chat(message):
-    st.session_state.messages.append({"role": "assistant", "content": message})
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": f"""Summary of the uploaded document: 
+        
+        {message}
+
+        You can ask me any question about the content of your document.
+        """,
+        }
+    )
 
 
 def main():
