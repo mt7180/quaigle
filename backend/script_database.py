@@ -7,87 +7,149 @@ from langchain.schema.output_parser import StrOutputParser
 from langchain.schema.runnable import RunnableLambda, RunnableMap, RunnablePassthrough
 from langchain.prompts import ChatPromptTemplate
 
-# from langchain_experimental.sql import SQLDatabaseChain
+from langchain.callbacks import get_openai_callback
 
 from operator import itemgetter
 
-from dotenv import load_dotenv
-import certifi
-import os
-
-# load your API key to the environment variables
-load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
-
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 # openai_log = "debug"
 
-# workaround for mac to solve SSL: CERTIFICATE_VERIFY_FAILED Error
-os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
-os.environ["SSL_CERT_FILE"] = certifi.where()
+
+class CustomTokenCounter:
+    def __init__(self):
+        self._total_llm_token_count = 0
+
+    @property
+    def total_llm_token_count(self):
+        return self._total_llm_token_count
+
+    def reset_counts(self):
+        self._total_llm_token_count = 0
+
+    def add_count(self, value: int):
+        if isinstance(value, int) and value >= 0:
+            self._total_llm_token_count += value
+        else:
+            raise ValueError(
+                """Invalid value to add to total_llm_token_count. 
+                Count must be a non-negative integer."""
+            )
 
 
-class AIDataBase:
-    def __init__(self, db):
-        self.db = db
+class AIDataBase(SQLDatabase):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.category = "database"
+        self.summary = self.get_table_info()
 
     def get_schema(self, _):
-        return self.db.get_table_info()
+        return self.get_table_info()
 
     def run_query(self, working_dict):
         logging.debug(working_dict["query"])
-        return self.db.run(working_dict["query"])
+        return self.run(working_dict["query"])
 
-    def ask_a_question(self, question: str):
+    def ask_a_question(self, question: str, token_callback: CustomTokenCounter) -> str:
         llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
-        logging.debug(db.get_table_info())
+        logging.debug(self.get_table_info())
+        with get_openai_callback() as callback:
+            query_generator = (
+                RunnableMap(
+                    {
+                        "schema": RunnableLambda(self.get_schema),
+                        "question": itemgetter("question"),
+                    }
+                )
+                | ChatPromptTemplate.from_template(
+                    """Based on the table schema below, write a SQL query that 
+                    would answer the user's question:
+                    {schema}
 
-        query_generator = (
-            RunnableMap(
-                {
-                    "schema": RunnableLambda(self.get_schema),
-                    "question": itemgetter("question"),
+                    Question: {question}
+                    SQL Query:"""
+                )
+                | llm.bind(stop=["\nSQLResult:"])
+                | StrOutputParser()
+                | {"query": RunnablePassthrough()}
+            )
+
+            chain = (
+                query_generator
+                | {
+                    "response": RunnableLambda(self.run_query),
+                    "question": RunnablePassthrough(),
                 }
+                | ChatPromptTemplate.from_template(
+                    """Based on the question and the sql response, 
+                    write a natural language response:
+
+                    Question: {question}
+                    SQL Response: {response}"""
+                )
+                | llm
             )
-            | ChatPromptTemplate.from_template(
-                """Based on the table schema below, write a SQL query that would answer 
-                the user's question:
-                {schema}
+            response = chain.invoke({"question": question})
+            token_callback.add_count(callback.total_tokens)
+        return response.content
 
-                Question: {question}
-                SQL Query:"""
-            )
-            | llm.bind(stop=["\nSQLResult:"])
-            | StrOutputParser()
-            | {"query": RunnablePassthrough()}
-        )
 
-        chain = (
-            query_generator
-            | {
-                "response": RunnableLambda(self.run_query),
-                "question": RunnablePassthrough(),
-            }
-            | ChatPromptTemplate.from_template(
-                """Based on the question and the sql response, 
-                write a natural language response:
+class DataChatBotWrapper:
+    def __init__(self, callback_manager: CustomTokenCounter):
+        self.data_category: str = "database"
+        self.summary: str = ""
+        self.token_callback = callback_manager
+        self.document: AIDataBase = None
 
-                Question: {question}
-                SQL Response: {response}"""
-            )
-            | llm
-        )
+    def add_document(self, document) -> None:
+        self.document = document
+        self.summary = document.get_table_info()
 
-        return chain.invoke({"question": question}).content
+    def clear_chat_history(self) -> str:
+        return "No chat history available for database"
+
+    def clear_data_storage(self) -> None:
+        del self.document
+        self.document = None
+        # ToDo delete db file ?
+
+    def update_temp(self, temperature) -> None:
+        pass
+
+    def answer_question(self, question: str) -> str:
+        return self.document.ask_a_question(question, self.token_callback)
+
+
+def set_up_chatbot():
+    token_counter = CustomTokenCounter()
+    return (
+        DataChatBotWrapper(callback_manager=token_counter),
+        None,
+        token_counter,
+    )
 
 
 if __name__ == "__main__":
-    db = SQLDatabase.from_uri("sqlite:///data/database.sqlite")
+    from dotenv import load_dotenv
+    import certifi
+    import os
 
-    quaigle_db = AIDataBase(db)
+    # load your API key to the environment variables
+    load_dotenv()
+    API_KEY = os.getenv("OPENAI_API_KEY")
+
+    # workaround for mac to solve SSL: CERTIFICATE_VERIFY_FAILED Error
+    os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+    os.environ["SSL_CERT_FILE"] = certifi.where()
+
+    chat_engine, callback_manager, token_counter = set_up_chatbot()
+
+    document: AIDataBase = AIDataBase.from_uri("sqlite:///data/database.sqlite")
+    chat_engine.add_document(document)
+
     question = """What is the name of the user who wrote the largest number of 
         helpful reviews for amazon?
         """
 
-    print(quaigle_db.ask_a_question(question))
+    print(chat_engine.answer_question(question))
+    logging.debug(f"Number of used tokens: {token_counter.total_llm_token_count}")
