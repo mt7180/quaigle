@@ -64,6 +64,8 @@ def initialize_session(refresh_session=False):
             st.session_state.total_tokens = []
         if "url" not in st.session_state:
             st.session_state["url"] = ""
+        if "chat_mode" not in st.session_state:
+            st.session_state["chat_mode"] = ""
 
 
 def clear_history():
@@ -134,10 +136,9 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
 
             if response.status_code == 200:
                 response_data = response.json()
-                # st.session_state.counter += 1
-                # print(response_data["summary"], st.session_state.counter)
                 post_ai_message_to_chat(
-                    response_data.get("summary", "Unknown response")
+                    response_data.get("summary", "Unknown response"),
+                    response_data.get("text_category"),
                 )
             else:
                 st.error(f"Error: {response.status_code}")
@@ -163,24 +164,26 @@ def display_sidemenu():
     Please uploade your file or enter a url. Supported file types: 
     """
     )
-    col1, col2 = st.sidebar.columns(2)
+    col1, col2 = st.sidebar.columns((1, 2))
     col1.markdown(
         """
-        - txt  
+        - txt 
         - html
+        - sqlite 
         """
     )
     col2.markdown(
         """
-        - db 
-        - sqlite  
+        - as upload
+        - as url
+        - url or upload
         """
     )
     with st.sidebar.container():
         success_message = st.empty()
         if st.file_uploader(
             "dragndrop",
-            type=["txt", "sqlite", "db"],
+            type=["txt", "sqlite"],
             on_change=uploader_callback,
             key="file_uploader",
             label_visibility="collapsed",
@@ -228,7 +231,7 @@ def questionai():
                 st.markdown(message["content"])
 
         if prompt := st.chat_input(
-            "-> Post questions regarding the content of your file, AI will answer..."
+            "-> Ask questions about the content of your document, AI will answer..."
         ):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -267,7 +270,13 @@ def questionai():
 @register_page(MAIN_PAGE)
 def quizme():
     with st.container():
-        st.text("Quiz")
+        if st.session_state["chat_mode"] == "database":
+            st.markdown(
+                """Sorry, you are in database mode, no quiz available.  
+            Please upload a text or give a url to a webpage to generate a quiz."""
+            )
+        else:
+            st.text("Quiz")
 
 
 @register_page(MAIN_PAGE)
@@ -276,16 +285,22 @@ def statistics():
         st.text("Statics")
 
 
-def post_ai_message_to_chat(message):
+def post_ai_message_to_chat(message, document_category):
+    document = document_category
+    if document_category == "database":
+        st.session_state["chat_mode"] = "database"
+        message = f"""
+        {message}
+        """
+    else:
+        st.session_state["chat_mode"] = "text"
+        document += " text"
+    chat_message = f"""**Summary of the uploaded {document}:**  
+    {message}"""
     st.session_state.messages.append(
         {
             "role": "assistant",
-            "content": f"""Summary of the uploaded document: 
-        
-        {message}
-
-        You can ask me any question about the content of your document.
-        """,
+            "content": chat_message,
         }
     )
 

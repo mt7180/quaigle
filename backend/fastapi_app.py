@@ -32,7 +32,7 @@ LLM_NAME = "gpt-3.5-turbo"
 load_dotenv()
 openai_log = "debug"
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 # Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
@@ -74,11 +74,7 @@ def load_text_chat_engine():
     if not app.chat_engine or app.chat_engine.data_category == "database":
         logging.debug("setting up text chatbot")
         app.chat_engine, app.callback_manager, app.token_counter = set_up_text_chatbot()
-        print(app.token_counter.total_llm_token_count)
-        if app.callback_manager:
-            print("callback manager not Null")
-    # elif chat_engine.data_category == "database":
-    #     if chat_engine.data_category
+        logging.debug(f"Token Count: {app.token_counter.total_llm_token_count}")
 
 
 def load_database_chat_engine():
@@ -101,10 +97,17 @@ async def handle_uploadfile(
 
     logging.debug(upload_file.filename.split(".")[-1])
     match upload_file.filename.split(".")[-1]:
-        case ["txt"]:
+        case "txt":
             load_text_chat_engine()
             return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-        case ["sqlite" | "db"]:
+        # case "html":
+        #     load_text_chat_engine()
+        #     return AIHtmlDocument(
+        #         f"file://{str(cfd)}/data/{file_name}",
+        #         LLM_NAME,
+        #         app.callback_manager
+        #     )
+        case "sqlite" | "db":
             load_database_chat_engine()
             return AIDataBase().from_uri(f"sqlite:///data/{file_name}")
 
@@ -114,7 +117,6 @@ async def handle_upload_url(upload_url):
     match re.split(r"[./]", upload_url):
         case ["sqlite:", _, _, dir, _, "sqlite" | "db"] if dir == "data":
             load_database_chat_engine()
-            print(app.token_counter.total_llm_token_count, upload_url, cfd)
             document: AIDataBase = AIDataBase.from_uri(upload_url)
             return document
         case [*_, dir, file_name, "txt"] if dir == "data":
@@ -145,7 +147,7 @@ async def upload_file(
                     status_code=400, detail="You can not provide both, file and URL."
                 )
             os.makedirs("data", exist_ok=True)
-            document = handle_uploadfile(upload_file)
+            document = await handle_uploadfile(upload_file)
             file_name = upload_file.filename
         elif upload_url:
             document = await handle_upload_url(upload_url)
@@ -164,7 +166,7 @@ async def upload_file(
         message = f"There was a problem with the provided url: {e.args}"
     except OSError as e:
         message = f"""There was an unexpected OSError on saving the file: 
-        {e.args}, please ask the admin for write permissions
+        {e.args}.
         """
     return TextSummaryModel(
         file_name=file_name,
