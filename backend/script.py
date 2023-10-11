@@ -31,7 +31,7 @@ import pathlib
 import tiktoken
 import logging
 
-from document_categories import CATEGORY_LABELS
+from .document_categories import CATEGORY_LABELS
 
 
 class AITextDocument:

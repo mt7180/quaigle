@@ -10,7 +10,7 @@ import pathlib
 import os
 import certifi
 
-from script import (
+from .script import (
     AITextDocument,
     AIHtmlDocument,
     set_up_chatbot,

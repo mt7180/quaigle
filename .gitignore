@@ -5,6 +5,7 @@ frontend/static/old_files
 todos.txt
 frontend/utils/request_wrapper.py
 *.pyc
+*.sqlite
 PoC_LlamaIndex/data
 PoC_LlamaIndex/storage
 PoC_marvin/data
