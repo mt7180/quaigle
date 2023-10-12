@@ -50,6 +50,9 @@ def set_page_settings():
     )
     with open("./static/style.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+def display_header():
     with st.container():
         st.title(APP_TITLE)
         display_options_menu()
@@ -74,28 +77,38 @@ def initialize_session(refresh_session=False):
             st.session_state["question_data"] = []
         if "chat_mode" not in st.session_state:
             st.session_state["chat_mode"] = ""
+        if "redirect_to_page" not in st.session_state:
+            st.session_state["redirect_to_page"] = None
+        # if "file_uploader" not in st.session_state:
+        #     st.session_state["file_uploader"]
 
 
 def clear_history():
-    st.session_state.messages.clear()
+    # st.session_state.messages.clear()
+    initialize_session(refresh_session=True)
     response = requests.get(os.path.join(API_URL, "clear_history"))
+    st.session_state["redirect_to_page"] = 0
     if response.status_code == 200:
         data = response.json()
-        return f"Success: {data['message']}"
+        return f"{data['message']}"
     else:
-        return st.error(f"Error: {response.status_code} - {response.text}")
+        return f"Error: {response.status_code} - {response.text}"
 
 
 def clear_storage():
     st.session_state["url"] = ""
+    st.session_state["question_data"] = []
+    st.session_state["chat_mode"] = ""
     st.session_state.pop("file_uploader")
+    st.session_state["redirect_to_page"] = 0
+    # st.session_state["url_input"]=""
     clear_history()
     response = requests.get(os.path.join(API_URL, "clear_storage"))
     if response.status_code == 200:
         data = response.json()
-        return f"Success: {data['message']}"
+        return f"{data['message']}"
     else:
-        return st.error(f"Error: {response.status_code} - {response.text}")
+        return f"Error: {response.status_code} - {response.text}"
 
 
 def display_options_menu():
@@ -110,6 +123,7 @@ def display_options_menu():
             ],  # https://icons.getbootstrap.com/
             # menu_icon="cast",
             default_index=0,
+            manual_select=st.session_state["redirect_to_page"],
             orientation="horizontal",
             styles={
                 "container": {
@@ -122,6 +136,7 @@ def display_options_menu():
             },
         )
         st.session_state.selected_page = selected_page.lower()
+        st.session_state["redirect_to_page"] = None
 
 
 def make_get_request(route: str):
@@ -165,7 +180,7 @@ def post_data_to_backend(
 
 
 def uploader_callback():
-    if st.session_state["file_uploader"] is not None:
+    if st.session_state.get("file_uploader", None) is not None:
         uploaded_file = st.session_state["file_uploader"]
         post_data_to_backend("upload", None, uploaded_file)
 
@@ -173,6 +188,7 @@ def uploader_callback():
 def url_callback():
     if url := st.session_state.get("url_input"):
         post_data_to_backend("upload", url, None)
+        # st.session_state["url_input"]=""
 
 
 def display_sidemenu():
@@ -235,6 +251,7 @@ def display_sidemenu():
 
         if st.button("Clear chat history", use_container_width=True):
             success_message.success(clear_history())
+            # st.rerun()
         if st.button("Clear knowledge base: texts/ urls", use_container_width=True):
             success_message.success(clear_storage())
             st.experimental_rerun()
@@ -372,6 +389,7 @@ def post_ai_message_to_chat(message, document_category):
 def main():
     set_page_settings()
     initialize_session()
+    display_header()
     display_sidemenu()
     MAIN_PAGE[st.session_state.selected_page]()
 

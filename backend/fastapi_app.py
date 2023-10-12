@@ -227,16 +227,24 @@ async def qa_text(question: QuestionModel):
 
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
-    app.chat_engine.clear_data_storage()
-    # logging.DEBUG("vector store cleared...")
+    if app.chat_engine:
+        app.chat_engine.clear_data_storage()
+        logging.debug("vector store cleared...")
+    for file in pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "data").iterdir():
+        os.remove(file)
+    app.chat_engine = None
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
-    message = app.chat_engine.clear_chat_history()
-    # logging.DEBUG("chat history cleared...")
-    return TextResponseModel(message=message)
+    if app.chat_engine:
+        message = app.chat_engine.clear_chat_history()
+        # logging.debug("chat history cleared...")
+        return TextResponseModel(message=message)
+    return TextResponseModel(
+        message="No active chat available, please load a document."
+    )
 
 
 @app.get(
@@ -257,13 +265,21 @@ def get_quiz():
     from llama_index.prompts import PromptTemplate
     from llama_index.response import Response
 
-    vector_index = app.chat_engine.vector_index
-
-    if not vector_index.ref_doc_info:
+    if not app.chat_engine or not app.chat_engine.vector_index.ref_doc_info:
         raise HTTPException(
             status_code=400,
             detail="No context provided, please provide a url or a text file!",
         )
+
+    if app.chat_engine.data_category == "database":
+        raise HTTPException(
+            status_code=400,
+            detail="""A database is loaded, but no valid context for a quiz.
+            Please provide a webpage url or a text file!
+            """,
+        )
+
+    vector_index = app.chat_engine.vector_index
 
     lc_output_parser = PydanticOutputParser(pydantic_object=MultipleChoiceTest)
     output_parser = LangchainOutputParser(lc_output_parser)
