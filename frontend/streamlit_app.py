@@ -77,17 +77,19 @@ def initialize_session(refresh_session=False):
             st.session_state["question_data"] = []
         if "chat_mode" not in st.session_state:
             st.session_state["chat_mode"] = ""
-        if "redirect_to_page" not in st.session_state:
-            st.session_state["redirect_to_page"] = None
-        # if "file_uploader" not in st.session_state:
-        #     st.session_state["file_uploader"]
+        if "selected_page" not in st.session_state:
+            st.session_state["selected_page"] = 0
+        if "redirect_page" not in st.session_state:
+            st.session_state["redirect_page"] = None
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
 
 
 def clear_history():
     # st.session_state.messages.clear()
     initialize_session(refresh_session=True)
     response = requests.get(os.path.join(API_URL, "clear_history"))
-    st.session_state["redirect_to_page"] = 0
+    st.session_state["redirect_page"] = 0
     if response.status_code == 200:
         data = response.json()
         return f"{data['message']}"
@@ -99,8 +101,8 @@ def clear_storage():
     st.session_state["url"] = ""
     st.session_state["question_data"] = []
     st.session_state["chat_mode"] = ""
-    st.session_state.pop("file_uploader")
-    st.session_state["redirect_to_page"] = 0
+    st.session_state["file_uploader_key"] += 1
+    st.session_state["redirect_page"] = 0
     # st.session_state["url_input"]=""
     clear_history()
     response = requests.get(os.path.join(API_URL, "clear_storage"))
@@ -111,9 +113,15 @@ def clear_storage():
         return f"Error: {response.status_code} - {response.text}"
 
 
+def set_selected_page(key):
+    st.session_state["selected_page"] = st.session_state["option_menu1"].lower()
+
+
 def display_options_menu():
+    translate = {"questionai": 0, "quizme": 1, "statistics": 2}
     with st.container():
         selected_page = option_menu(
+            key="option_menu1",
             menu_title=None,
             options=["QuestionAI", "QuizMe", "Statistics"],
             icons=[
@@ -122,8 +130,9 @@ def display_options_menu():
                 "activity",
             ],  # https://icons.getbootstrap.com/
             # menu_icon="cast",
-            default_index=0,
-            manual_select=st.session_state["redirect_to_page"],
+            on_change=set_selected_page,
+            default_index=translate.get(st.session_state["selected_page"], 0),
+            manual_select=st.session_state["redirect_page"],
             orientation="horizontal",
             styles={
                 "container": {
@@ -136,7 +145,7 @@ def display_options_menu():
             },
         )
         st.session_state.selected_page = selected_page.lower()
-        st.session_state["redirect_to_page"] = None
+        st.session_state["redirect_page"] = None
 
 
 def make_get_request(route: str):
@@ -180,8 +189,8 @@ def post_data_to_backend(
 
 
 def uploader_callback():
-    if st.session_state.get("file_uploader", None) is not None:
-        uploaded_file = st.session_state["file_uploader"]
+    if st.session_state.get(st.session_state["file_uploader_key"], None) is not None:
+        uploaded_file = st.session_state[st.session_state["file_uploader_key"]]
         post_data_to_backend("upload", None, uploaded_file)
 
 
@@ -219,7 +228,7 @@ def display_sidemenu():
             "dragndrop",
             type=["txt", "sqlite"],
             on_change=uploader_callback,
-            key="file_uploader",
+            key=st.session_state["file_uploader_key"],
             label_visibility="collapsed",
         ):
             success_message.success("File successfully uploaded")
