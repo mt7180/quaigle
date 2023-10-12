@@ -282,7 +282,7 @@ def quizme():
         st.session_state.score = 0
         message_placeholder = st.empty()
         if st.button("Generate a Quiz"):
-            response = make_get_request("quizz")
+            response = make_get_request("quiz")
             if response.status_code == 200:
                 for question in response.json().get("questions"):
                     answer_options = [

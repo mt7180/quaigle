@@ -168,14 +168,14 @@ async def clear_history():
 
 
 @app.get(
-    "/quizz",
+    "/quiz",
     # response_model=MultipleChoiceTest,
     responses={
         200: {"model": MultipleChoiceTest},
         400: {"model": ErrorResponse},
     },
 )
-def get_quizz():
+def get_quiz():
     from llama_index.output_parsers import LangchainOutputParser
     from langchain.output_parsers import PydanticOutputParser
     from llama_index.prompts.default_prompts import (
