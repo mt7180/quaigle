@@ -142,7 +142,6 @@ class CustomLlamaIndexChatEngineWrapper:
     """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
-    llm = OpenAI(model=OPENAI_MODEL, temperature=0, max_tokens=512)
     cfd = pathlib.Path(__file__).parent
 
     def __init__(self, callback_manager=None):

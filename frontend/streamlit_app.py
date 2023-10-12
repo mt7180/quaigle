@@ -1,5 +1,6 @@
 # run ommand: streamlit run streamlit_app.py
 import pathlib
+import random
 from fastapi import UploadFile
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -61,14 +62,16 @@ def initialize_session(refresh_session=False):
     else:
         if "messages" not in st.session_state:
             st.session_state.messages = []
-        # if "counter" not in st.session_state:
-        # st.session_state.counter = 0
+        if "score" not in st.session_state:
+            st.session_state.score = 0
         if "temperature" not in st.session_state:
             st.session_state.temperature = 0
         if "total_tokens" not in st.session_state:
             st.session_state.total_tokens = []
         if "url" not in st.session_state:
             st.session_state["url"] = ""
+        if "question_data" not in st.session_state:
+            st.session_state["question_data"] = []
 
 
 def clear_history():
@@ -119,8 +122,15 @@ def display_options_menu():
         st.session_state.selected_page = selected_page.lower()
 
 
-def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = None):
-    with st.spinner("Waiting for response"):
+def make_get_request(route: str):
+    return requests.get(os.path.join(API_URL, route))
+
+
+# def make_post_request(route:str, data):
+def post_data_to_backend(
+    route: str, url: str = "", uploaded_file: UploadFile | None = None
+):
+    with st.spinner("Waiting for openai API response"):
         try:
             if url:
                 data = {"upload_url": url}
@@ -154,12 +164,12 @@ def make_request(route: str, url: str = "", uploaded_file: UploadFile | None = N
 def uploader_callback():
     if st.session_state["file_uploader"] is not None:
         uploaded_file = st.session_state["file_uploader"]
-        make_request("upload", None, uploaded_file)
+        post_data_to_backend("upload", None, uploaded_file)
 
 
 def url_callback():
     if url := st.session_state.get("url_input"):
-        make_request("upload", url, None)
+        post_data_to_backend("upload", url, None)
 
 
 def display_sidemenu():
@@ -264,7 +274,8 @@ def questionai():
         elif len(st.session_state.messages) == 0:
             cfd = pathlib.Path(__file__).parent
             image = Image.open(cfd / "static" / "main_picture3.png")
-            st.image(
+            _, center, _ = st.columns((1, 5, 1))
+            center.image(
                 image,
                 caption=None,
             )
@@ -273,7 +284,52 @@ def questionai():
 @register_page(MAIN_PAGE)
 def quizme():
     with st.container():
-        st.text("Quiz")
+        st.markdown("### A Quiz for You")
+        st.session_state.score = 0
+        message_placeholder = st.empty()
+        if st.button("Generate a Quiz"):
+            response = make_get_request("quiz")
+            if response.status_code == 200:
+                for question in response.json().get("questions"):
+                    answer_options = [
+                        question["correct_answer"],
+                        question["wrong_answer_1"],
+                        question["wrong_answer_2"],
+                    ]
+                    random.shuffle(answer_options)
+                    st.session_state["question_data"].append(
+                        {
+                            "question_txt": question["question"],
+                            "correct_answer": question["correct_answer"],
+                            "answer_options": answer_options,
+                        }
+                    )
+            else:
+                message_placeholder.error(response.json().get("detail"))
+
+        for question in st.session_state["question_data"]:
+            st.markdown(f"##### Question: {question['question_txt']}")
+            user_answer = st.radio(
+                "Select an answer:",
+                ["Please Select an answer:", *question["answer_options"]],
+                label_visibility="collapsed",
+            )
+
+            if user_answer == question["correct_answer"]:
+                st.session_state.score += 1
+
+        if st.session_state["score"] > 0:
+            message_placeholder.success(
+                f"You answered {st.session_state.score} questions correct!"
+            )
+        if not st.session_state["question_data"]:
+            cfd = pathlib.Path(__file__).parent
+            image = Image.open(cfd / "static" / "Hippo.png")
+            _, center, _ = st.columns((2, 4, 2))
+            center.image(
+                image,
+                caption=None,
+            )
 
 
 @register_page(MAIN_PAGE)
