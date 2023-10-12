@@ -144,7 +144,7 @@ async def qa_text(question: QuestionModel):
     response = chat_bot.chat_engine.chat(
         question.prompt,
     )
-    # logging.debug(response.response)
+    logging.debug(response.response)
 
     return QAResponseModel(
         user_question=question.prompt,
@@ -156,14 +156,13 @@ async def qa_text(question: QuestionModel):
 @app.get("/clear_storage", response_model=TextResponseModel)
 async def clear_storage():
     chat_bot.empty_vector_store()
-    # logging.DEBUG("vector store cleared...")
+    logging.debug("vector store cleared...")
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
 @app.get("/clear_history", response_model=TextResponseModel)
 async def clear_history():
     chat_bot.clear_chat_history()
-    # logging.DEBUG("chat history cleared...")
     return TextResponseModel(message="Chat history succesfully cleared")
 
 

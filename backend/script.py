@@ -254,6 +254,7 @@ class CustomLlamaIndexChatEngineWrapper:
 
     def clear_chat_history(self):
         self.chat_engine.reset()
+        logging.debug("chat history cleared...")
 
     def update_temp(self, temperature):
         # see https://gpt-index.readthedocs.io/en/v0.8.34/examples/llm/XinferenceLocalDeployment.html
