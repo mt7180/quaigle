@@ -10,8 +10,9 @@ from requests.exceptions import MissingSchema
 import logging
 import sys
 from dotenv import load_dotenv
-import pathlib
+from pathlib import Path
 import os
+import errno
 import certifi
 
 from script import (
@@ -42,7 +43,7 @@ logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 app = FastAPI()
-cfd = pathlib.Path(__file__).parent
+cfd = Path(__file__).parent
 
 
 app.chat_engine: CustomLlamaIndexChatEngineWrapper | DataChatBotWrapper | None = None
@@ -97,7 +98,6 @@ async def handle_uploadfile(
     file_name = upload_file.filename
     with open(cfd / "data" / file_name, "wb") as f:
         f.write(await upload_file.read())
-
     logging.debug(upload_file.filename.split(".")[-1])
     match upload_file.filename.split(".")[-1]:
         case "txt":
@@ -116,23 +116,33 @@ async def handle_uploadfile(
 
 
 async def handle_upload_url(upload_url):
-    logging.debug(f"ending: {re.split(r'[./]', upload_url)}")
     match re.split(r"[./]", upload_url):
-        case ["sqlite:", _, _, dir, _, "sqlite" | "db"] if dir == "data":
-            load_database_chat_engine()
-            document: AIDataBase = AIDataBase.from_uri(upload_url)
-            return document
+        case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
+            if Path(cfd / "data" / (filename + ".sqlite")).is_file():
+                load_database_chat_engine()
+                document: AIDataBase = AIDataBase.from_uri(upload_url)
+                return document
+            else:
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    upload_url,
+                )
         case [*_, dir, file_name, "txt"] if dir == "data":
             try:
                 load_text_chat_engine()
                 return AITextDocument(file_name, LLM_NAME, app.callback_manager)
             except OSError:
-                raise FileNotFoundError
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    file_name,
+                )
         case [http, *_] if "http" in http.lower():
             load_text_chat_engine()
             return AIHtmlDocument(upload_url, LLM_NAME, app.callback_manager)
         case _:
-            raise FileNotFoundError
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), upload_url)
 
 
 class MultipleChoiceQuestion(BaseModel):
@@ -174,6 +184,7 @@ async def upload_file(
     message = ""
     text_category = ""
     file_name = ""
+    used_tokens = 0
     try:
         if upload_file:
             if upload_url:
@@ -191,37 +202,44 @@ async def upload_file(
                 status_code=400,
                 detail="You must provide either a file or URL to upload.",
             )
-        app.chat_engine.add_document(document)
-        message = document.summary
-        text_category = document.category
+        if app.chat_engine and document:
+            app.chat_engine.add_document(document)
+            message = document.summary
+            text_category = document.category
+            used_tokens = app.token_counter.total_llm_token_count
     except HTTPException as e:
         message = (f"There was an error on uploading your text/ url: {e.args}",)
     except MissingSchema as e:
         message = f"There was a problem with the provided url: {e.args}"
     except OSError as e:
-        message = f"""There was an unexpected OSError on saving the file: 
-        {e.args}.
+        message = f"""There was an unexpected OSError on uploading the file: 
+        {e}.
         """
     return TextSummaryModel(
         file_name=file_name,
         text_category=text_category,
         summary=message,
-        used_tokens=app.token_counter.total_llm_token_count,
+        used_tokens=used_tokens,
     )
 
 
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
-    app.token_counter.reset_counts()
-    # logging.debug(question.prompt)
-    app.chat_engine.update_temp(question.temperature)
-    response = app.chat_engine.answer_question(question)
-    # logging.debug(response.response)
+    if app.chat_engine:
+        # logging.debug(f"mark2: Token counter live?: {app.token_counter is not None}")
+        app.token_counter.reset_counts()
+        app.chat_engine.update_temp(question.temperature)
+        response = app.chat_engine.answer_question(question)
+        ai_answer = str(response)
+        used_tokens = app.token_counter.total_llm_token_count
+    else:
+        ai_answer = "Sorry, no context loaded. Please upload a file or url."
+        used_tokens = 0
 
     return QAResponseModel(
         user_question=question.prompt,
-        ai_answer=str(response),
-        used_tokens=app.token_counter.total_llm_token_count,
+        ai_answer=ai_answer,
+        used_tokens=used_tokens,
     )
 
 
@@ -229,8 +247,8 @@ async def qa_text(question: QuestionModel):
 async def clear_storage():
     if app.chat_engine:
         app.chat_engine.clear_data_storage()
-        logging.debug("vector store cleared...")
-    for file in pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "data").iterdir():
+        logging.debug("chat engine cleared...")
+    for file in Path(cfd / "data").iterdir():
         os.remove(file)
     app.chat_engine = None
     return TextResponseModel(message="Knowledge base succesfully cleared")

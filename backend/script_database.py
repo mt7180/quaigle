@@ -51,12 +51,12 @@ class AIDataBase(SQLDatabase):
         return self.get_table_info()
 
     def run_query(self, working_dict):
-        logging.debug(working_dict["query"])
+        logging.debug("Query: ", working_dict["query"])
         return self.run(working_dict["query"])
 
     def ask_a_question(self, question: str, token_callback: CustomTokenCounter) -> str:
         llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
-        logging.debug(self.get_table_info())
+        # logging.debug(self.get_table_info())
         with get_openai_callback() as callback:
             query_generator = (
                 RunnableMap(
@@ -83,13 +83,16 @@ class AIDataBase(SQLDatabase):
                 | {
                     "response": RunnableLambda(self.run_query),
                     "question": RunnablePassthrough(),
+                    "query": RunnablePassthrough(),
                 }
                 | ChatPromptTemplate.from_template(
                     """Based on the question and the sql response, 
-                    write a natural language response:
+                    write a natural language response anf finally add 
+                    the query to your response:
 
                     Question: {question}
-                    SQL Response: {response}"""
+                    SQL Response: {response}
+                    Query: {query}"""
                 )
                 | llm
             )
@@ -152,9 +155,10 @@ if __name__ == "__main__":
 
     chat_engine.add_document(document)
 
-    question = """What is the name of the user who wrote the largest number of 
-        helpful reviews for amazon?
-        """
+    question = (
+        """Which name has the user who wrote the largest amount of helpful reviews?"""
+    )
     print(document.summary)
     print(chat_engine.answer_question(question))
     logging.debug(f"Number of used tokens: {token_counter.total_llm_token_count}")
+    # print(document.get_table_info())

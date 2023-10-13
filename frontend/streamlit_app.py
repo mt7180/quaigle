@@ -83,6 +83,8 @@ def initialize_session(refresh_session=False):
             st.session_state["redirect_page"] = None
         if "file_uploader_key" not in st.session_state:
             st.session_state["file_uploader_key"] = 0
+        if "url_uploader_key" not in st.session_state:
+            st.session_state["url_uploader_key"] = 0
 
 
 def clear_history():
@@ -102,6 +104,7 @@ def clear_storage():
     st.session_state["question_data"] = []
     st.session_state["chat_mode"] = ""
     st.session_state["file_uploader_key"] += 1
+    st.session_state["url_uploader_key"] += 1
     st.session_state["redirect_page"] = 0
     # st.session_state["url_input"]=""
     clear_history()
@@ -183,19 +186,20 @@ def post_data_to_backend(
                     response_data.get("text_category"),
                 )
             else:
-                st.error(f"Error: {response.status_code}")
+                st.error(f"Error: {response.status_code} - {response.text}")
         except FileNotFoundError:
             st.error("No context is given. Please provide a url or upload a file")
 
 
 def uploader_callback():
-    if st.session_state.get(st.session_state["file_uploader_key"], None) is not None:
-        uploaded_file = st.session_state[st.session_state["file_uploader_key"]]
+    file_uploader_key = "file_uploader" + str(st.session_state["file_uploader_key"])
+    if uploaded_file := st.session_state.get(file_uploader_key):
         post_data_to_backend("upload", None, uploaded_file)
 
 
 def url_callback():
-    if url := st.session_state.get("url_input"):
+    text_input_key = "text_input" + str(st.session_state["url_uploader_key"])
+    if url := st.session_state.get(text_input_key):
         post_data_to_backend("upload", url, None)
         # st.session_state["url_input"]=""
 
@@ -228,7 +232,7 @@ def display_sidemenu():
             "dragndrop",
             type=["txt", "sqlite"],
             on_change=uploader_callback,
-            key=st.session_state["file_uploader_key"],
+            key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
         ):
             success_message.success("File successfully uploaded")
@@ -236,7 +240,7 @@ def display_sidemenu():
         if st.text_input(
             "text:",
             placeholder="OR enter url",
-            key="url_input",
+            key="text_input" + str(st.session_state["url_uploader_key"]),
             label_visibility="collapsed",
             on_change=url_callback,
         ):
@@ -299,7 +303,7 @@ def questionai():
                             {"role": "assistant", "content": ai_answer}
                         )
                     else:
-                        st.error(f"Error: {response.status_code}")
+                        st.error(f"Error: {response.status_code} - {response.text}")
                 message_placeholder.markdown(ai_answer)
                 add_vertical_space(7)
         elif len(st.session_state.messages) == 0:
@@ -376,16 +380,16 @@ def statistics():
 
 
 def post_ai_message_to_chat(message, document_category):
-    document = document_category
-    if document_category == "database":
+    document_category_str = document_category.lower()
+    if document_category_str == "database":
         st.session_state["chat_mode"] = "database"
         message = f"""
         {message}
         """
     else:
         st.session_state["chat_mode"] = "text"
-        document += " text"
-    chat_message = f"""**Summary of the uploaded {document}:**  
+        document_category_str += " (text)"
+    chat_message = f"""**Summary of the uploaded {document_category_str}:**  
     {message}"""
     st.session_state.messages.append(
         {
