@@ -3,15 +3,20 @@ from backend.fastapi_app import app
 
 from fastapi.testclient import TestClient
 
+from pathlib import Path
+
 client = TestClient(app)
+cfd = Path(__file__).parent
 
 
 def test_upload_text_file():
-    upload_file: UploadFile | None = None  # How to create manually???
+    # upload_file: UploadFile | None = None  # How to create manually???
+    file_name = "example.txt"
+    upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
     response = client.post(
         "/upload",
         data={"upload_url": ""},
-        files={"upload_file": ("example.txt", upload_file)},
+        files={"upload_file": (file_name, upload_file)},
     )
     assert response.status_code == 200
 
@@ -46,10 +51,12 @@ def test_upload_url_database():
 
 def test_upload_url_and_file():
     upload_file: UploadFile | None = None
+    file_name = "example.txt"
+    upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
     response = client.post(
         "/upload",
         data={"upload_url": "https://de.wikipedia.org/wiki/Don’t_repeat_yourself"},
-        files={"upload_file": ("test2.txt", upload_file)},
+        files={"upload_file": (file_name, upload_file)},
     )
     assert response.status_code == 400
     assert response.json() == {

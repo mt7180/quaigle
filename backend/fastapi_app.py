@@ -22,7 +22,7 @@ from .script import (
     set_up_text_chatbot,
 )
 
-from script_database import (
+from .script_database import (
     AIDataBase,
     DataChatBotWrapper,
     set_up_database_chatbot,
