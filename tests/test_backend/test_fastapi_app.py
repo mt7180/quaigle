@@ -11,7 +11,7 @@ def test_upload_text_file():
     response = client.post(
         "/upload",
         data={"upload_url": ""},
-        files={"upload_file": ("test2.txt", upload_file)},
+        files={"upload_file": ("example.txt", upload_file)},
     )
     assert response.status_code == 200
 
@@ -30,21 +30,18 @@ def test_upload_url_webpage():
     assert data.get("used_tokens", None) is not None
 
 
-# not yet merged into main
-# def test_upload_url_database():
-#     url = "sqlite:///data/database.sqlite"
-#     response = client.post(
-#         "/upload",
-#         data={"upload_url": url},
-#         files = {"upload_file": ("", None)}
-#     )
-#     assert response.status_code == 200
-#     data = response.json()
-#     # test if keys in response and if not None
-#     assert data.get("file_name", None) == url
-#     assert data.get("text_category", None) is not None
-#     assert data.get("summary", None) is not None
-#     assert data.get("used_tokens", None) is not None
+def test_upload_url_database():
+    url = "sqlite:///data/database.sqlite"
+    response = client.post(
+        "/upload", data={"upload_url": url}, files={"upload_file": ("", None)}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # test if keys in response and if not None
+    assert data.get("file_name", None) == url
+    assert data.get("text_category", None) is not None
+    assert data.get("summary", None) is not None
+    assert data.get("used_tokens", None) is not None
 
 
 def test_upload_url_and_file():
