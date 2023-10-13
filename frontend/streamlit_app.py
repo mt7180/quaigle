@@ -406,7 +406,7 @@ def post_ai_message_to_chat(message, document_category):
         """
     else:
         st.session_state["chat_mode"] = "text"
-        document_category_str += " (text)"
+        document_category_str += " text"
     chat_message = f"""**Summary of the uploaded {document_category_str}:**  
     {message}"""
     st.session_state.messages.append(

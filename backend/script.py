@@ -51,10 +51,8 @@ class AITextDocument:
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
-        self.category = ",".join(
-            node.metadata["marvin_metadata"].get("category") for node in self.nodes
-        )
-        self.summary: str = "".join(
+        self.category = self.nodes[0].metadata["marvin_metadata"].get("category")
+        self.summary: str = " ".join(
             node.metadata["marvin_metadata"].get("description") for node in self.nodes
         )
 
