@@ -50,6 +50,9 @@ def set_page_settings():
     )
     with open("./static/style.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+
+
+def display_header():
     with st.container():
         st.title(APP_TITLE)
         display_options_menu()
@@ -72,33 +75,56 @@ def initialize_session(refresh_session=False):
             st.session_state["url"] = ""
         if "question_data" not in st.session_state:
             st.session_state["question_data"] = []
+        if "chat_mode" not in st.session_state:
+            st.session_state["chat_mode"] = ""
+        if "selected_page" not in st.session_state:
+            st.session_state["selected_page"] = 0
+        if "redirect_page" not in st.session_state:
+            st.session_state["redirect_page"] = None
+        if "file_uploader_key" not in st.session_state:
+            st.session_state["file_uploader_key"] = 0
+        if "url_uploader_key" not in st.session_state:
+            st.session_state["url_uploader_key"] = 0
 
 
 def clear_history():
-    st.session_state.messages.clear()
+    # st.session_state.messages.clear()
+    initialize_session(refresh_session=True)
     response = requests.get(os.path.join(API_URL, "clear_history"))
+    st.session_state["redirect_page"] = 0
     if response.status_code == 200:
         data = response.json()
-        return f"Success: {data['message']}"
+        return f"{data['message']}"
     else:
-        return st.error(f"Error: {response.status_code} - {response.text}")
+        return f"Error: {response.status_code} - {response.text}"
 
 
 def clear_storage():
     st.session_state["url"] = ""
-    st.session_state.pop("file_uploader")
+    st.session_state["question_data"] = []
+    st.session_state["chat_mode"] = ""
+    st.session_state["file_uploader_key"] += 1
+    st.session_state["url_uploader_key"] += 1
+    st.session_state["redirect_page"] = 0
+    # st.session_state["url_input"]=""
     clear_history()
     response = requests.get(os.path.join(API_URL, "clear_storage"))
     if response.status_code == 200:
         data = response.json()
-        return f"Success: {data['message']}"
+        return f"{data['message']}"
     else:
-        return st.error(f"Error: {response.status_code} - {response.text}")
+        return f"Error: {response.status_code} - {response.text}"
+
+
+def set_selected_page(key):
+    st.session_state["selected_page"] = st.session_state["option_menu1"].lower()
 
 
 def display_options_menu():
+    translate = {"questionai": 0, "quizme": 1, "statistics": 2}
     with st.container():
         selected_page = option_menu(
+            key="option_menu1",
             menu_title=None,
             options=["QuestionAI", "QuizMe", "Statistics"],
             icons=[
@@ -107,7 +133,9 @@ def display_options_menu():
                 "activity",
             ],  # https://icons.getbootstrap.com/
             # menu_icon="cast",
-            default_index=0,
+            on_change=set_selected_page,
+            default_index=translate.get(st.session_state["selected_page"], 0),
+            manual_select=st.session_state["redirect_page"],
             orientation="horizontal",
             styles={
                 "container": {
@@ -120,6 +148,7 @@ def display_options_menu():
             },
         )
         st.session_state.selected_page = selected_page.lower()
+        st.session_state["redirect_page"] = None
 
 
 def make_get_request(route: str):
@@ -153,23 +182,26 @@ def post_data_to_backend(
                 # st.session_state.counter += 1
                 # print(response_data["summary"], st.session_state.counter)
                 post_ai_message_to_chat(
-                    response_data.get("summary", "Unknown response")
+                    response_data.get("summary", "Unknown response"),
+                    response_data.get("text_category"),
                 )
             else:
-                st.error(f"Error: {response.status_code}")
+                st.error(f"Error: {response.status_code} - {response.text}")
         except FileNotFoundError:
             st.error("No context is given. Please provide a url or upload a file")
 
 
 def uploader_callback():
-    if st.session_state["file_uploader"] is not None:
-        uploaded_file = st.session_state["file_uploader"]
+    file_uploader_key = "file_uploader" + str(st.session_state["file_uploader_key"])
+    if uploaded_file := st.session_state.get(file_uploader_key):
         post_data_to_backend("upload", None, uploaded_file)
 
 
 def url_callback():
-    if url := st.session_state.get("url_input"):
+    text_input_key = "text_input" + str(st.session_state["url_uploader_key"])
+    if url := st.session_state.get(text_input_key):
         post_data_to_backend("upload", url, None)
+        # st.session_state["url_input"]=""
 
 
 def display_sidemenu():
@@ -179,26 +211,28 @@ def display_sidemenu():
     Please uploade your file or enter a url. Supported file types: 
     """
     )
-    col1, col2 = st.sidebar.columns(2)
+    col1, col2 = st.sidebar.columns((1, 2))
     col1.markdown(
         """
-        - txt  
+        - txt 
         - html
+        - sqlite 
         """
     )
     col2.markdown(
         """
-        - db 
-        - sqlite  
+        - as upload
+        - as url
+        - url or upload
         """
     )
     with st.sidebar.container():
         success_message = st.empty()
         if st.file_uploader(
             "dragndrop",
-            type=["txt", "sqlite", "db"],
+            type=["txt", "sqlite"],
             on_change=uploader_callback,
-            key="file_uploader",
+            key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
         ):
             success_message.success("File successfully uploaded")
@@ -206,7 +240,7 @@ def display_sidemenu():
         if st.text_input(
             "text:",
             placeholder="OR enter url",
-            key="url_input",
+            key="text_input" + str(st.session_state["url_uploader_key"]),
             label_visibility="collapsed",
             on_change=url_callback,
         ):
@@ -230,6 +264,7 @@ def display_sidemenu():
 
         if st.button("Clear chat history", use_container_width=True):
             success_message.success(clear_history())
+            # st.rerun()
         if st.button("Clear knowledge base: texts/ urls", use_container_width=True):
             success_message.success(clear_storage())
             st.experimental_rerun()
@@ -244,7 +279,7 @@ def questionai():
                 st.markdown(message["content"])
 
         if prompt := st.chat_input(
-            "-> Post questions regarding the content of your file, AI will answer..."
+            "-> Ask questions about the content of your document, AI will answer..."
         ):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
@@ -268,7 +303,7 @@ def questionai():
                             {"role": "assistant", "content": ai_answer}
                         )
                     else:
-                        st.error(f"Error: {response.status_code}")
+                        st.error(f"Error: {response.status_code} - {response.text}")
                 message_placeholder.markdown(ai_answer)
                 add_vertical_space(7)
         elif len(st.session_state.messages) == 0:
@@ -284,52 +319,58 @@ def questionai():
 @register_page(MAIN_PAGE)
 def quizme():
     with st.container():
-        st.markdown("### A Quiz for You")
-        st.session_state.score = 0
-        message_placeholder = st.empty()
-        if st.button("Generate a Quiz"):
-            response = make_get_request("quiz")
-            if response.status_code == 200:
-                for question in response.json().get("questions"):
-                    answer_options = [
-                        question["correct_answer"],
-                        question["wrong_answer_1"],
-                        question["wrong_answer_2"],
-                    ]
-                    random.shuffle(answer_options)
-                    st.session_state["question_data"].append(
-                        {
-                            "question_txt": question["question"],
-                            "correct_answer": question["correct_answer"],
-                            "answer_options": answer_options,
-                        }
-                    )
-            else:
-                message_placeholder.error(response.json().get("detail"))
-
-        for question in st.session_state["question_data"]:
-            st.markdown(f"##### Question: {question['question_txt']}")
-            user_answer = st.radio(
-                "Select an answer:",
-                ["Please Select an answer:", *question["answer_options"]],
-                label_visibility="collapsed",
+        if st.session_state["chat_mode"] == "database":
+            st.markdown(
+                """Sorry, you are in database mode, no quiz available.  
+            Please upload a text or give a url to a webpage to generate a quiz."""
             )
+        else:
+            st.markdown("### A Quiz for You")
+            st.session_state.score = 0
+            message_placeholder = st.empty()
+            if st.button("Generate a Quiz"):
+                response = make_get_request("quiz")
+                if response.status_code == 200:
+                    for question in response.json().get("questions"):
+                        answer_options = [
+                            question["correct_answer"],
+                            question["wrong_answer_1"],
+                            question["wrong_answer_2"],
+                        ]
+                        random.shuffle(answer_options)
+                        st.session_state["question_data"].append(
+                            {
+                                "question_txt": question["question"],
+                                "correct_answer": question["correct_answer"],
+                                "answer_options": answer_options,
+                            }
+                        )
+                else:
+                    message_placeholder.error(response.json().get("detail"))
 
-            if user_answer == question["correct_answer"]:
-                st.session_state.score += 1
+            for question in st.session_state["question_data"]:
+                st.markdown(f"##### Question: {question['question_txt']}")
+                user_answer = st.radio(
+                    "Select an answer:",
+                    ["Please Select an answer:", *question["answer_options"]],
+                    label_visibility="collapsed",
+                )
 
-        if st.session_state["score"] > 0:
-            message_placeholder.success(
-                f"You answered {st.session_state.score} questions correct!"
-            )
-        if not st.session_state["question_data"]:
-            cfd = pathlib.Path(__file__).parent
-            image = Image.open(cfd / "static" / "Hippo.png")
-            _, center, _ = st.columns((2, 4, 2))
-            center.image(
-                image,
-                caption=None,
-            )
+                if user_answer == question["correct_answer"]:
+                    st.session_state.score += 1
+
+            if st.session_state["score"] > 0:
+                message_placeholder.success(
+                    f"You answered {st.session_state.score} questions correct!"
+                )
+            if not st.session_state["question_data"]:
+                cfd = pathlib.Path(__file__).parent
+                image = Image.open(cfd / "static" / "Hippo.png")
+                _, center, _ = st.columns((2, 4, 2))
+                center.image(
+                    image,
+                    caption=None,
+                )
 
 
 @register_page(MAIN_PAGE)
@@ -338,13 +379,30 @@ def statistics():
         st.text("Statics")
 
 
-def post_ai_message_to_chat(message):
-    st.session_state.messages.append({"role": "assistant", "content": message})
+def post_ai_message_to_chat(message, document_category):
+    document_category_str = document_category.lower()
+    if document_category_str == "database":
+        st.session_state["chat_mode"] = "database"
+        message = f"""
+        {message}
+        """
+    else:
+        st.session_state["chat_mode"] = "text"
+        document_category_str += " (text)"
+    chat_message = f"""**Summary of the uploaded {document_category_str}:**  
+    {message}"""
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "content": chat_message,
+        }
+    )
 
 
 def main():
     set_page_settings()
     initialize_session()
+    display_header()
     display_sidemenu()
     MAIN_PAGE[st.session_state.selected_page]()
 
