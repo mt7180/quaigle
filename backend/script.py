@@ -51,10 +51,10 @@ class AITextDocument:
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
-        self.text_category = ",".join(
-            node.metadata["marvin_metadata"].get("text_category") for node in self.nodes
+        self.category = ",".join(
+            node.metadata["marvin_metadata"].get("category") for node in self.nodes
         )
-        self.text_summary: str = "".join(
+        self.summary: str = "".join(
             node.metadata["marvin_metadata"].get("description") for node in self.nodes
         )
 
@@ -107,7 +107,7 @@ class AITextDocument:
             document.
             """,
         )
-        text_category: str = Field(
+        category: str = Field(
             ...,
             description=f"""best matching text category from the following list: 
             {str(CATEGORY_LABELS)}
@@ -142,12 +142,11 @@ class CustomLlamaIndexChatEngineWrapper:
     """
 
     OPENAI_MODEL = "gpt-3.5-turbo"
-    llm = OpenAI(model=OPENAI_MODEL, temperature=0, max_tokens=512)
     cfd = pathlib.Path(__file__).parent
 
     def __init__(self, callback_manager=None):
         self.callback_manager = callback_manager
-        self.text_category: str = ""  # default, if no document is loaded yet
+        self.data_category: str = ""  # default, if no document is loaded yet
         self.llm = OpenAI(
             model=CustomLlamaIndexChatEngineWrapper.OPENAI_MODEL,
             temperature=0,
@@ -179,17 +178,17 @@ class CustomLlamaIndexChatEngineWrapper:
             callback_manager=self.callback_manager,
         )
 
-    def add_document(self, document: AITextDocument):
+    def add_document(self, document: AITextDocument) -> None:
         self.documents.append(document)
         self._add_to_vector_index(document.nodes)
-        self.text_category = (
-            document.text_category
+        self.data_category = (
+            document.category
         )  # TODO: find mojority, if multiple docs are loaded
         self.vector_index.storage_context.persist(
             persist_dir=CustomLlamaIndexChatEngineWrapper.cfd / "storage"
         )
 
-    def empty_vector_store(self):
+    def clear_data_storage(self) -> None:
         doc_ids = list(self.vector_index.ref_doc_info.keys())
         for doc_id in doc_ids:
             self.vector_index.delete_ref_doc(doc_id, delete_from_docstore=True)
@@ -197,6 +196,7 @@ class CustomLlamaIndexChatEngineWrapper:
             persist_dir=CustomLlamaIndexChatEngineWrapper.cfd / "storage"
         )
         self.documents.clear()
+        # ToDo delete text documents in data folder
 
     def create_vector_index(self):
         # print(node. for doc in self.documents for node in doc.nodes)
@@ -219,7 +219,7 @@ class CustomLlamaIndexChatEngineWrapper:
             content_info="content of uploaded text documents",
             metadata_info=[
                 MetadataInfo(
-                    name="text_category",
+                    name="category",
                     type="str",
                     description="""best matching text category (e.g. Technical, 
                         Biagraphy, Sience Fiction, ... )
@@ -238,7 +238,7 @@ class CustomLlamaIndexChatEngineWrapper:
             similarity_top=10,
         )
 
-    def create_chat_engine(self):
+    def create_chat_engine(self) -> CondenseQuestionChatEngine:
         vector_query_engine = RetrieverQueryEngine(
             retriever=self._create_vector_index_retriever(),
             response_synthesizer=get_response_synthesizer(),
@@ -253,8 +253,9 @@ class CustomLlamaIndexChatEngineWrapper:
             callback_manager=self.callback_manager,
         )
 
-    def clear_chat_history(self):
+    def clear_chat_history(self) -> str:
         self.chat_engine.reset()
+        return "Chat history succesfully cleared"
 
     def update_temp(self, temperature):
         # see https://gpt-index.readthedocs.io/en/v0.8.34/examples/llm/XinferenceLocalDeployment.html
@@ -263,8 +264,11 @@ class CustomLlamaIndexChatEngineWrapper:
         )
         # self.llm.temperature=temperature
 
+    def answer_question(self, question: str) -> str:
+        return self.chat_engine.chat(question.prompt)
 
-def set_up_chatbot():
+
+def set_up_text_chatbot():
     token_counter = TokenCountingHandler(
         tokenizer=tiktoken.encoding_for_model("gpt-3.5-turbo").encode
     )
@@ -294,7 +298,7 @@ if __name__ == "__main__":
     logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
     # openai_log = "debug"
 
-    chat_engine, callback_manager, token_counter = set_up_chatbot()
+    chat_engine, callback_manager, token_counter = set_up_text_chatbot()
 
     try:
         document = AITextDocument("test2.txt", "gpt-3.5-turbo", callback_manager)
