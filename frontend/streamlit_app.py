@@ -185,6 +185,9 @@ def post_data_to_backend(
                     response_data.get("summary", "Unknown response"),
                     response_data.get("text_category"),
                 )
+                st.session_state.total_tokens.append(
+                    response_data.get("used_tokens", 0)
+                )
             else:
                 st.error(f"Error: {response.status_code} - {response.text}")
         except FileNotFoundError:
@@ -295,8 +298,12 @@ def questionai():
                     message_placeholder = st.empty()
                     ai_answer = ""
                     if response.status_code == 200:
-                        ai_answer = response.json().get(
+                        response_data = response.json()
+                        ai_answer = response_data.get(
                             "ai_answer", "Unknown response type"
+                        )
+                        st.session_state.total_tokens.append(
+                            response_data.get("used_tokens", 0)
                         )
                         message_placeholder.markdown(ai_answer)
                         st.session_state.messages.append(
@@ -375,8 +382,19 @@ def quizme():
 
 @register_page(MAIN_PAGE)
 def statistics():
+    import pandas as pd
+
     with st.container():
-        st.text("Statics")
+        st.markdown("### Used API Tokens per Request of your Current Session")
+        st.markdown("(Usage not persisted)")
+        _, center, _ = st.columns((1, 5, 1))
+        chart_data = pd.DataFrame({"Used API Tokens": st.session_state.total_tokens})
+        center.bar_chart(
+            data=chart_data,
+            color="#D3DCE5",
+            y="Used API Tokens",
+            use_container_width=False,
+        )
 
 
 def post_ai_message_to_chat(message, document_category):
@@ -388,7 +406,7 @@ def post_ai_message_to_chat(message, document_category):
         """
     else:
         st.session_state["chat_mode"] = "text"
-        document_category_str += " (text)"
+        document_category_str += " text"
     chat_message = f"""**Summary of the uploaded {document_category_str}:**  
     {message}"""
     st.session_state.messages.append(
