@@ -51,6 +51,14 @@ app.callback_manager = None
 app.token_counter = None
 
 
+class DoubleUploadException(HTTPException):
+    pass
+
+
+class NoUploadException(HTTPException):
+    pass
+
+
 class TextSummaryModel(BaseModel):
     file_name: str
     text_category: str
@@ -188,7 +196,7 @@ async def upload_file(
     try:
         if upload_file:
             if upload_url:
-                raise HTTPException(
+                raise DoubleUploadException(
                     status_code=400, detail="You can not provide both, file and URL."
                 )
             os.makedirs("data", exist_ok=True)
@@ -198,7 +206,7 @@ async def upload_file(
             document = await handle_upload_url(upload_url)
             file_name = upload_url
         else:
-            raise HTTPException(
+            raise NoUploadException(
                 status_code=400,
                 detail="You must provide either a file or URL to upload.",
             )

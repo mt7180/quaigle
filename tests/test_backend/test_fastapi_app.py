@@ -1,28 +1,54 @@
-from fastapi import UploadFile
-from backend.fastapi_app import app
-
-from fastapi.testclient import TestClient
+import pytest
 
 from pathlib import Path
+
+from fastapi import UploadFile
+from fastapi.testclient import TestClient
+
+from backend.fastapi_app import (
+    app,
+    clear_storage,
+    DoubleUploadException,
+    NoUploadException,
+)
+
 
 client = TestClient(app)
 cfd = Path(__file__).parent
 
 
-def test_upload_text_file():
-    # upload_file: UploadFile | None = None  # How to create manually???
+@pytest.fixture
+def text_file():
     file_name = "example.txt"
     upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
+    yield upload_file
+    # teardown
+    clear_storage()
+
+
+@pytest.fixture
+def url():
+    return "https://de.wikipedia.org/wiki/Don’t_repeat_yourself"
+
+
+@pytest.fixture
+def url_db():
+    url_db = "sqlite:///data/database.sqlite"
+    yield url_db
+    # teardown
+    clear_storage()
+
+
+def test_upload_text_file(text_file):
     response = client.post(
         "/upload",
         data={"upload_url": ""},
-        files={"upload_file": (file_name, upload_file)},
+        files={"upload_file": (text_file.filename, text_file)},
     )
     assert response.status_code == 200
 
 
-def test_upload_url_webpage():
-    url = "https://de.wikipedia.org/wiki/Don’t_repeat_yourself"
+def test_upload_url_webpage(url):
     response = client.post(
         "/upload", data={"upload_url": url}, files={"upload_file": ("", None)}
     )
@@ -35,10 +61,9 @@ def test_upload_url_webpage():
     assert data.get("used_tokens", None) is not None
 
 
-def test_upload_url_database():
-    url = "sqlite:///data/database.sqlite"
+def test_upload_url_database(url_db):
     response = client.post(
-        "/upload", data={"upload_url": url}, files={"upload_file": ("", None)}
+        "/upload", data={"upload_url": url_db}, files={"upload_file": ("", None)}
     )
     assert response.status_code == 200
     data = response.json()
@@ -49,29 +74,28 @@ def test_upload_url_database():
     assert data.get("used_tokens", None) is not None
 
 
-def test_upload_url_and_file():
-    upload_file: UploadFile | None = None
-    file_name = "example.txt"
-    upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
-    response = client.post(
-        "/upload",
-        data={"upload_url": "https://de.wikipedia.org/wiki/Don’t_repeat_yourself"},
-        files={"upload_file": (file_name, upload_file)},
-    )
-    assert response.status_code == 400
-    assert response.json() == {
-        "detail": "You must provide either a file or URL to upload."
-    }
+def test_upload_url_and_file(url, text_file):
+    with pytest.raises(DoubleUploadException):
+        response = client.post(
+            "/upload",
+            data={"upload_url": url},
+            files={"upload_file": (text_file.filename, text_file)},
+        )
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "You must provide either a file or URL to upload."
+        }
 
 
 def test_upload_no_url_and_no_file():
-    response = client.post(
-        "/upload", data={"upload_url": ""}, files={"upload_file": ("", None)}
-    )
-    assert response.status_code == 400
-    assert response.json() == {
-        "detail": "You must provide either a file or URL to upload."
-    }
+    with pytest.raises(NoUploadException):
+        response = client.post(
+            "/upload", data={"upload_url": ""}, files={"upload_file": ("", None)}
+        )
+        assert response.status_code == 400
+        assert response.json() == {
+            "detail": "You must provide either a file or URL to upload."
+        }
 
 
 def test_upload_bad_url():
