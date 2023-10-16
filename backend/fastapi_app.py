@@ -216,9 +216,9 @@ async def upload_file(
             text_category = document.category
             used_tokens = app.token_counter.total_llm_token_count
     except HTTPException as e:
-        message = (f"There was an error on uploading your text/ url: {e.args}",)
+        message = f"There was an error on uploading your text/ url: {e.detail}"
     except MissingSchema as e:
-        message = f"There was a problem with the provided url: {e.args}"
+        message = f"There was a problem with the provided url: {e.detail}"
     except OSError as e:
         message = f"""There was an unexpected OSError on uploading the file: 
         {e}.
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "fastapi_app:app",
+        "backend.fastapi_app:app",
         host="0.0.0.0",
         port=8000,
         workers=1,

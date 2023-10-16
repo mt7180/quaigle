@@ -13,3 +13,6 @@ PoC_LlamaIndex/storage
 PoC_marvin/data
 backend/storage
 tests/example_upload_files
+*.code-workspace
+.github
+tests/test_backend/test.py

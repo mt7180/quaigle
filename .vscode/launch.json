@@ -4,14 +4,50 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        
         {
-            "name": "Python: Current File",
+            "name": "Run FastAPI App",
             "type": "python",
             "request": "launch",
-            "program": "${file}",
+            "module":"backend.fastapi_app",
             "console": "integratedTerminal",
-            "justMyCode": true
-        }
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/venv/bin/python"
+            }
+            // "module": "uvicorn",
+            // "args": [
+            //     "backend.fastapi_app:app", 
+            //     "--reload"
+            // ],
+        },
+        
+        {
+            "name": "Run Test FastAPI App",
+            "type": "python",
+            "request": "launch",
+            "module": "tests.test_backend.test_fastapi_app",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/venv/bin/python"
+            }
+        },
+        {
+            "name": "Run Test script",
+            "type": "python",
+            "request": "launch",
+            // "program": "${workspaceFolder}/tests/test_backend/test_fastapi_app.py",
+            "module": "tests.test_backend.test_script",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/venv/bin/python"
+            }
+        },
+        {
+            "args": ["-m", "not ai_call"],
+            "name": "PyTest All",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "justMyCode": false
+          },
     ]
 }

@@ -1,7 +1,10 @@
+# python -m tests.test_backend.test_fastapi_app.py
+import logging
 import pytest
 
 from pathlib import Path
 import shutil
+import sys
 
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
@@ -13,20 +16,21 @@ from backend.fastapi_app import (
     NoUploadException,
 )
 
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 client = TestClient(app)
 cfd = Path(__file__).parent
-example_file_dir = cfd / "example_upload_files"
+example_file_dir = Path(__file__).parents[1] / "example_upload_files"
 
 
 # Todo: put fixtures into conftest.py
 @pytest.fixture
 def text_file():
     file_name = "example.txt"
-    shutil.copy(example_file_dir / "example.txt", cfd / "data")
-    upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
+    upload_file: UploadFile = Path(example_file_dir, file_name).open("rb")
     yield upload_file
-    # teardown
+    # clean-up app storage after tests
     clear_storage()
 
 
@@ -37,12 +41,23 @@ def url():
 
 @pytest.fixture
 def url_db():
-    url_db = "sqlite:///data/database.sqlite"
-    yield url_db
-    # teardown
-    clear_storage()
+    file_name = "database.sqlite"
+    app_data_dir = "data"
+    destination_file = Path(cfd / app_data_dir / file_name)
+    destination_file.parent.mkdir(exist_ok=True, parents=True)
+
+    url_db_copied_to_app = f"sqlite:///{app_data_dir}/{file_name}"
+    # destination = Path(__file__).parents[2] / "backend" / app_data_dir
+    # destination = cfd / app_data_dir
+    shutil.copy(example_file_dir / file_name, destination_file)
+
+    yield url_db_copied_to_app
+    # clear-up
+    clear_storage()  # funktioniert noch nicht
 
 
+@pytest.mark.ai_call
+@pytest.mark.ai_embeddings
 def test_upload_text_file(text_file):
     response = client.post(
         "/upload",
@@ -52,6 +67,8 @@ def test_upload_text_file(text_file):
     assert response.status_code == 200
 
 
+@pytest.mark.ai_call
+@pytest.mark.ai_embeddings
 def test_upload_url_webpage(url):
     response = client.post(
         "/upload", data={"upload_url": url}, files={"upload_file": ("", None)}
@@ -65,14 +82,33 @@ def test_upload_url_webpage(url):
     assert data.get("used_tokens", None) is not None
 
 
+# def test_test_route():
+#     #data = {"upload_url": "sqlite:///data/database.sqlite"}
+#     file_name = "example.txt"
+#     file = Path(example_file_dir, file_name).open("rb")
+#     response = client.post(
+#         "/upload",
+#         files={"upload_file": ("example.txt", file)}
+#     )
+
+#     assert response.status_code == 200
+#     assert response.json().get("detail") == "example"
+
+
 def test_upload_url_database(url_db):
-    response = client.post(
-        "/upload", data={"upload_url": url_db}, files={"upload_file": ("", None)}
-    )
+    data = {"upload_url": "sqlite:///data/database.sqlite"}
+    # working:
+    # file_name = "example.txt"
+    # file = Path(example_file_dir, file_name).open("rb")
+    # response = client.post(
+    #     "/upload", data=data, files={"upload_file": (file_name, file)}
+    # )
+
+    response = client.post("/upload", data=data, files=None)
     assert response.status_code == 200
     data = response.json()
     # test if keys in response and if not None
-    assert data.get("file_name", None) == url
+    assert data.get("file_name", None) == url_db
     assert data.get("text_category", None) is not None
     assert data.get("summary", None) is not None
     assert data.get("used_tokens", None) is not None
@@ -119,6 +155,8 @@ def test_upload_bad_url():
 #     assert response.status_code == 200
 
 
+@pytest.mark.ai_call
+@pytest.mark.ai_gpt35
 def test_ask_question_about_given_text():
     """Caution: test takes some time since openai API call required"""
 
@@ -137,6 +175,8 @@ def test_ask_question_about_given_text():
     assert data.get("used_tokens", None) is not None
 
 
+@pytest.mark.ai_call
+@pytest.mark.ai_gpt35
 def test_ask_question_about_given_database():
     """Caution: test takes some time since openai API call required"""
 
@@ -151,6 +191,8 @@ def test_ask_question_about_given_database():
     assert response.json()
 
 
+@pytest.mark.ai_call
+@pytest.mark.ai_gpt35
 def test_qa_with_empty_question():
     response = client.post(
         "/qa_text",
