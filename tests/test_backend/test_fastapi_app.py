@@ -1,11 +1,12 @@
 import pytest
 
 from pathlib import Path
+import shutil
 
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 
-from backend.fastapi_app import (
+from ...backend.fastapi_app import (
     app,
     clear_storage,
     DoubleUploadException,
@@ -15,11 +16,14 @@ from backend.fastapi_app import (
 
 client = TestClient(app)
 cfd = Path(__file__).parent
+example_file_dir = cfd / "example_upload_files"
 
 
+# Todo: put fixtures into conftest.py
 @pytest.fixture
 def text_file():
     file_name = "example.txt"
+    shutil.copy(example_file_dir / "example.txt", cfd / "data")
     upload_file: UploadFile = Path(cfd / "data", file_name).open("rb")
     yield upload_file
     # teardown
@@ -196,3 +200,7 @@ def test_clear_history_route_up():
 # def test_quiz():
 #     response = client.get("/quizz")
 #     assert response.status_code == 200
+
+if __name__ == "__main__":
+    file_name = "example.txt"
+    print(str(cfd))
