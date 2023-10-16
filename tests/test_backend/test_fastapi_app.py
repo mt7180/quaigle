@@ -6,7 +6,7 @@ import shutil
 from fastapi import UploadFile
 from fastapi.testclient import TestClient
 
-from ...backend.fastapi_app import (
+from backend.fastapi_app import (
     app,
     clear_storage,
     DoubleUploadException,

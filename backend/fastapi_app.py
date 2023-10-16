@@ -1,4 +1,4 @@
-# command to run: uvicorn fastapi_app:app --reload
+# command to run: uvicorn backend.fastapi_app:app --reload
 import re
 from typing import List
 from fastapi import FastAPI, HTTPException, UploadFile, Form
