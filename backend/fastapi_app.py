@@ -51,11 +51,15 @@ app.callback_manager = None
 app.token_counter = None
 
 
-class DoubleUploadException(HTTPException):
+class DoubleUploadException(Exception):
     pass
 
 
-class NoUploadException(HTTPException):
+class NoUploadException(Exception):
+    pass
+
+
+class EmptyQuestionException(Exception):
     pass
 
 
@@ -79,78 +83,6 @@ class QAResponseModel(BaseModel):
 
 class TextResponseModel(BaseModel):
     message: str
-
-
-def load_text_chat_engine():
-    logging.debug(f"is there a chat engine?: {app.chat_engine is not None}")
-    if not app.chat_engine or app.chat_engine.data_category == "database":
-        logging.debug("setting up text chatbot")
-        app.chat_engine, app.callback_manager, app.token_counter = set_up_text_chatbot()
-        logging.debug(f"Token Count: {app.token_counter.total_llm_token_count}")
-
-
-def load_database_chat_engine():
-    if not app.chat_engine or app.chat_engine.data_category != "database":
-        logging.debug("setting up database chatbot")
-        (
-            app.chat_engine,
-            app.callback_manager,
-            app.token_counter,
-        ) = set_up_database_chatbot()
-        logging.debug(f"Token counter there?: {app.token_counter is not None}")
-
-
-async def handle_uploadfile(
-    upload_file: UploadFile,
-) -> AITextDocument | AIDataBase | None:
-    file_name = upload_file.filename
-    with open(cfd / "data" / file_name, "wb") as f:
-        f.write(await upload_file.read())
-    logging.debug(upload_file.filename.split(".")[-1])
-    match upload_file.filename.split(".")[-1]:
-        case "txt":
-            load_text_chat_engine()
-            return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-        # case "html":
-        #     load_text_chat_engine()
-        #     return AIHtmlDocument(
-        #         f"file://{str(cfd)}/data/{file_name}",
-        #         LLM_NAME,
-        #         app.callback_manager
-        #     )
-        case "sqlite" | "db":
-            load_database_chat_engine()
-            return AIDataBase().from_uri(f"sqlite:///data/{file_name}")
-
-
-async def handle_upload_url(upload_url):
-    match re.split(r"[./]", upload_url):
-        case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
-            if Path(cfd / "data" / (filename + ".sqlite")).is_file():
-                load_database_chat_engine()
-                document: AIDataBase = AIDataBase.from_uri(upload_url)
-                return document
-            else:
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT) + " in data folder",
-                    upload_url,
-                )
-        case [*_, dir, file_name, "txt"] if dir == "data":
-            try:
-                load_text_chat_engine()
-                return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-            except OSError:
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT) + " in data folder",
-                    file_name,
-                )
-        case [http, *_] if "http" in http.lower():
-            load_text_chat_engine()
-            return AIHtmlDocument(upload_url, LLM_NAME, app.callback_manager)
-        case _:
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), upload_url)
 
 
 class MultipleChoiceQuestion(BaseModel):
@@ -184,6 +116,79 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+def load_text_chat_engine():
+    logging.debug(f"is there a chat engine?: {app.chat_engine is not None}")
+    if not app.chat_engine or app.chat_engine.data_category == "database":
+        logging.debug("setting up text chatbot")
+        app.chat_engine, app.callback_manager, app.token_counter = set_up_text_chatbot()
+        logging.debug(f"Token Count: {app.token_counter.total_llm_token_count}")
+
+
+def load_database_chat_engine():
+    if not app.chat_engine or app.chat_engine.data_category != "database":
+        logging.debug("setting up database chatbot")
+        (
+            app.chat_engine,
+            app.callback_manager,  # is None in database mode
+            app.token_counter,
+        ) = set_up_database_chatbot()
+        logging.debug(f"Token counter there?: {app.token_counter is not None}")
+
+
+async def handle_uploadfile(
+    upload_file: UploadFile,
+) -> AITextDocument | AIDataBase | None:
+    file_name = upload_file.filename
+    with open(cfd / "data" / file_name, "wb") as f:
+        f.write(await upload_file.read())
+    logging.debug(upload_file.filename.split(".")[-1])
+    match upload_file.filename.split(".")[-1]:
+        case "txt":
+            load_text_chat_engine()
+            return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+        # case "html":
+        #     load_text_chat_engine()
+        #     return AIHtmlDocument(
+        #         f"file://{str(cfd)}/data/{file_name}",
+        #         LLM_NAME,
+        #         app.callback_manager
+        #     )
+        case "sqlite" | "db":
+            load_database_chat_engine()
+            return AIDataBase().from_uri(f"sqlite:///backend/data/{file_name}")
+
+
+async def handle_upload_url(upload_url):
+    match re.split(r"[./]", upload_url):
+        case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
+            if Path(cfd / "data" / (filename + ".sqlite")).is_file():
+                load_database_chat_engine()
+                url = "sqlite:///backend/data/" + filename + ".sqlite"
+                document: AIDataBase = AIDataBase.from_uri(url)
+                return document
+            else:
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    upload_url,
+                )
+        case [*_, dir, file_name, "txt"] if dir == "data":
+            try:
+                load_text_chat_engine()
+                return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+            except OSError:
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    file_name,
+                )
+        case [http, *_] if "http" in http.lower():
+            load_text_chat_engine()
+            return AIHtmlDocument(upload_url, LLM_NAME, app.callback_manager)
+        case _:
+            raise MissingSchema
+
+
 @app.post("/upload", response_model=TextSummaryModel)
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
@@ -196,9 +201,7 @@ async def upload_file(
     try:
         if upload_file:
             if upload_url:
-                raise DoubleUploadException(
-                    status_code=400, detail="You can not provide both, file and URL."
-                )
+                raise DoubleUploadException("You can not provide both, file and URL.")
             os.makedirs("data", exist_ok=True)
             document = await handle_uploadfile(upload_file)
             file_name = upload_file.filename
@@ -207,22 +210,30 @@ async def upload_file(
             file_name = upload_url
         else:
             raise NoUploadException(
-                status_code=400,
-                detail="You must provide either a file or URL to upload.",
+                "You must provide either a file or URL to upload.",
             )
         if app.chat_engine and document:
             app.chat_engine.add_document(document)
             message = document.summary
             text_category = document.category
             used_tokens = app.token_counter.total_llm_token_count
-    except HTTPException as e:
-        message = f"There was an error on uploading your text/ url: {e.detail}"
-    except MissingSchema as e:
-        message = f"There was a problem with the provided url: {e.detail}"
+    # except HTTPException as e:
+    #     # message = f"There was an error on uploading your text/ url: {e.detail}"
+    #     raise
+    except MissingSchema:
+        raise HTTPException(
+            status_code=400,
+            detail=f"""There was a problem with the provided url (MissingSchema):
+            {upload_url}
+            """,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except OSError as e:
-        message = f"""There was an unexpected OSError on uploading the file: 
-        {e}.
-        """
+        raise HTTPException(
+            status_code=400,
+            detail=f"There was an unexpected OSError on uploading the file:{e.detail}",
+        )
     return TextSummaryModel(
         file_name=file_name,
         text_category=text_category,
@@ -233,6 +244,10 @@ async def upload_file(
 
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
+    if not question.prompt:
+        raise EmptyQuestionException(
+            "Your Question is empty, please make type a message and resend."
+        )
     if app.chat_engine:
         # logging.debug(f"mark2: Token counter live?: {app.token_counter is not None}")
         app.token_counter.reset_counts()
@@ -259,6 +274,8 @@ async def clear_storage():
     for file in Path(cfd / "data").iterdir():
         os.remove(file)
     app.chat_engine = None
+    app.token_counter = None
+    app.callback_manager = None
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 

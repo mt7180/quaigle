@@ -189,9 +189,13 @@ def post_data_to_backend(
                     response_data.get("used_tokens", 0)
                 )
             else:
-                st.error(f"Error: {response.status_code} - {response.text}")
+                st.sidebar.error(
+                    f'Error: {response.status_code} - {response.json().get("detail")}'
+                )
         except FileNotFoundError:
-            st.error("No context is given. Please provide a url or upload a file")
+            st.sidebar.error(
+                "No context is given. Please provide a url or upload a file"
+            )
 
 
 def uploader_callback():
@@ -238,7 +242,7 @@ def display_sidemenu():
             key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
         ):
-            success_message.success("File successfully uploaded")
+            success_message.success("File uploaded")
 
         if st.text_input(
             "text:",
@@ -247,7 +251,7 @@ def display_sidemenu():
             label_visibility="collapsed",
             on_change=url_callback,
         ):
-            success_message.success("url successfully uploaded")
+            success_message.success("url uploaded")
 
         with stylable_container(
             key="red_container",
