@@ -1,4 +1,4 @@
-# run ommand: streamlit run streamlit_app.py
+# run command from root: streamlit run frontend/streamlit_app.py
 import pathlib
 import random
 from fastapi import UploadFile
@@ -20,6 +20,7 @@ API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
+cfd = pathlib.Path(__file__).parent
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
@@ -48,7 +49,7 @@ def set_page_settings():
         page_icon="🤖",
         layout="wide",
     )
-    with open("./static/style.css") as f:
+    with open(cfd / "static" / "style.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
@@ -320,7 +321,7 @@ def questionai():
                 message_placeholder.markdown(ai_answer)
                 add_vertical_space(7)
         elif len(st.session_state.messages) == 0:
-            cfd = pathlib.Path(__file__).parent
+            # cfd = pathlib.Path(__file__).parent
             image = Image.open(cfd / "static" / "main_picture3.png")
             _, center, _ = st.columns((1, 5, 1))
             center.image(
@@ -377,7 +378,7 @@ def quizme():
                     f"You answered {st.session_state.score} questions correct!"
                 )
             if not st.session_state["question_data"]:
-                cfd = pathlib.Path(__file__).parent
+                # cfd = pathlib.Path(__file__).parent
                 image = Image.open(cfd / "static" / "Hippo.png")
                 _, center, _ = st.columns((2, 4, 2))
                 center.image(

@@ -159,7 +159,7 @@ async def handle_upload_url(upload_url):
             full_filename = filename + ".sqlite"
             if Path(cfd / dir / full_filename).is_file():
                 # small tweak: autom. copy the db from provided url to data folder
-                # sqlite:///db/database.sqlite
+                # sqlite:///db/amazon.sqlite
                 if dir != "data":
                     destination_file = Path(cfd / "data" / full_filename)
                     destination_file.parent.mkdir(exist_ok=True, parents=True)
