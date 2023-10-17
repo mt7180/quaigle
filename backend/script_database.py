@@ -88,7 +88,7 @@ class AIDataBase(SQLDatabase):
                 | ChatPromptTemplate.from_template(
                     """Based on the question and the sql response, 
                     write a natural language response anf finally add 
-                    the query to your response:
+                    the sql query to your response:
 
                     Question: {question}
                     SQL Response: {response}

@@ -1,5 +1,6 @@
-# command to run: uvicorn fastapi_app:app --reload
+# command to run: uvicorn backend.fastapi_app:app --reload
 import re
+import shutil
 from typing import List
 from fastapi import FastAPI, HTTPException, UploadFile, Form
 from llama_index import ServiceContext
@@ -15,14 +16,14 @@ import os
 import errno
 import certifi
 
-from script import (
-    CustomLlamaIndexChatEngineWrapper,
+from .script import (
     AITextDocument,
     AIHtmlDocument,
+    CustomLlamaIndexChatEngineWrapper,
     set_up_text_chatbot,
 )
 
-from script_database import (
+from .script_database import (
     AIDataBase,
     DataChatBotWrapper,
     set_up_database_chatbot,
@@ -39,16 +40,28 @@ openai_log = "debug"
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
-
-
 app = FastAPI()
 cfd = Path(__file__).parent
 
 
+# Set-up Chat Engine:
+# - LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine for text files
+# - or querying a database with langchain SQLDatabaseChain and Runnables
 app.chat_engine: CustomLlamaIndexChatEngineWrapper | DataChatBotWrapper | None = None
 app.callback_manager = None
 app.token_counter = None
+
+
+class DoubleUploadException(Exception):
+    pass
+
+
+class NoUploadException(Exception):
+    pass
+
+
+class EmptyQuestionException(Exception):
+    pass
 
 
 class TextSummaryModel(BaseModel):
@@ -71,78 +84,6 @@ class QAResponseModel(BaseModel):
 
 class TextResponseModel(BaseModel):
     message: str
-
-
-def load_text_chat_engine():
-    logging.debug(f"is there a chat engine?: {app.chat_engine is not None}")
-    if not app.chat_engine or app.chat_engine.data_category == "database":
-        logging.debug("setting up text chatbot")
-        app.chat_engine, app.callback_manager, app.token_counter = set_up_text_chatbot()
-        logging.debug(f"Token Count: {app.token_counter.total_llm_token_count}")
-
-
-def load_database_chat_engine():
-    if not app.chat_engine or app.chat_engine.data_category != "database":
-        logging.debug("setting up database chatbot")
-        (
-            app.chat_engine,
-            app.callback_manager,
-            app.token_counter,
-        ) = set_up_database_chatbot()
-        logging.debug(f"Token counter there?: {app.token_counter is not None}")
-
-
-async def handle_uploadfile(
-    upload_file: UploadFile,
-) -> AITextDocument | AIDataBase | None:
-    file_name = upload_file.filename
-    with open(cfd / "data" / file_name, "wb") as f:
-        f.write(await upload_file.read())
-    logging.debug(upload_file.filename.split(".")[-1])
-    match upload_file.filename.split(".")[-1]:
-        case "txt":
-            load_text_chat_engine()
-            return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-        # case "html":
-        #     load_text_chat_engine()
-        #     return AIHtmlDocument(
-        #         f"file://{str(cfd)}/data/{file_name}",
-        #         LLM_NAME,
-        #         app.callback_manager
-        #     )
-        case "sqlite" | "db":
-            load_database_chat_engine()
-            return AIDataBase().from_uri(f"sqlite:///data/{file_name}")
-
-
-async def handle_upload_url(upload_url):
-    match re.split(r"[./]", upload_url):
-        case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
-            if Path(cfd / "data" / (filename + ".sqlite")).is_file():
-                load_database_chat_engine()
-                document: AIDataBase = AIDataBase.from_uri(upload_url)
-                return document
-            else:
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT) + " in data folder",
-                    upload_url,
-                )
-        case [*_, dir, file_name, "txt"] if dir == "data":
-            try:
-                load_text_chat_engine()
-                return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-            except OSError:
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT) + " in data folder",
-                    file_name,
-                )
-        case [http, *_] if "http" in http.lower():
-            load_text_chat_engine()
-            return AIHtmlDocument(upload_url, LLM_NAME, app.callback_manager)
-        case _:
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), upload_url)
 
 
 class MultipleChoiceQuestion(BaseModel):
@@ -176,11 +117,90 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
+def load_text_chat_engine():
+    if not app.chat_engine or app.chat_engine.data_category == "database":
+        logging.debug("setting up text chatbot")
+        (
+            app.chat_engine,
+            app.callback_manager,
+            app.token_counter,
+        ) = set_up_text_chatbot()
+
+
+def load_database_chat_engine():
+    if not app.chat_engine or app.chat_engine.data_category != "database":
+        logging.debug("setting up database chatbot")
+        (
+            app.chat_engine,
+            app.callback_manager,  # is None in database mode
+            app.token_counter,
+        ) = set_up_database_chatbot()
+
+
+async def handle_uploadfile(
+    upload_file: UploadFile,
+) -> AITextDocument | AIDataBase | None:
+    file_name = upload_file.filename
+    with open(cfd / "data" / file_name, "wb") as f:
+        f.write(await upload_file.read())
+    logging.debug(upload_file.filename.split(".")[-1])
+    match upload_file.filename.split(".")[-1]:
+        case "txt":
+            load_text_chat_engine()
+            return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+        case "sqlite" | "db":
+            load_database_chat_engine()
+            return AIDataBase().from_uri(f"sqlite:///backend/data/{file_name}")
+
+
+async def handle_upload_url(upload_url):
+    match re.split(r"[./]", upload_url):
+        case ["sqlite:", _, _, dir, filename, "sqlite"]:  # if dir == "data":
+            full_filename = filename + ".sqlite"
+            if Path(cfd / dir / full_filename).is_file():
+                # small tweak: autom. copy the db from provided url to data folder
+                # sqlite:///db/amazon.sqlite
+                if dir != "data":
+                    destination_file = Path(cfd / "data" / full_filename)
+                    destination_file.parent.mkdir(exist_ok=True, parents=True)
+                    shutil.copy(cfd / dir / full_filename, destination_file)
+                    upload_url = upload_url.replace("///" + dir, "///data")
+                load_database_chat_engine()
+                document: AIDataBase = AIDataBase.from_uri(upload_url)
+                return document
+            # elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
+            #     load_database_chat_engine()
+            #     url = "sqlite:///backend/data/" + filename + ".sqlite"
+            #     document: AIDataBase = AIDataBase.from_uri(url)
+            #     return document
+            else:
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    upload_url,
+                )
+        case [*_, dir, file_name, "txt"] if dir == "data":
+            try:
+                load_text_chat_engine()
+                return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+            except OSError:
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT) + " in data folder",
+                    file_name,
+                )
+        case [http, *_] if "http" in http.lower():
+            load_text_chat_engine()
+            return AIHtmlDocument(upload_url, LLM_NAME, app.callback_manager)
+        case _:
+            raise MissingSchema
+
+
 @app.post("/upload", response_model=TextSummaryModel)
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
 ):
-    # TOKEN_COUNTER.reset_counts()
+    # app.token_counter.reset_counts()
     message = ""
     text_category = ""
     file_name = ""
@@ -188,9 +208,7 @@ async def upload_file(
     try:
         if upload_file:
             if upload_url:
-                raise HTTPException(
-                    status_code=400, detail="You can not provide both, file and URL."
-                )
+                raise DoubleUploadException("You can not provide both, file and URL.")
             os.makedirs("data", exist_ok=True)
             document = await handle_uploadfile(upload_file)
             file_name = upload_file.filename
@@ -198,23 +216,31 @@ async def upload_file(
             document = await handle_upload_url(upload_url)
             file_name = upload_url
         else:
-            raise HTTPException(
-                status_code=400,
-                detail="You must provide either a file or URL to upload.",
+            raise NoUploadException(
+                "You must provide either a file or URL to upload.",
             )
         if app.chat_engine and document:
             app.chat_engine.add_document(document)
             message = document.summary
             text_category = document.category
             used_tokens = app.token_counter.total_llm_token_count
-    except HTTPException as e:
-        message = (f"There was an error on uploading your text/ url: {e.args}",)
-    except MissingSchema as e:
-        message = f"There was a problem with the provided url: {e.args}"
+    # except HTTPException as e:
+    #     # message = f"There was an error on uploading your text/ url: {e.detail}"
+    #     raise
+    except MissingSchema:
+        raise HTTPException(
+            status_code=400,
+            detail=f"""There was a problem with the provided url (MissingSchema):
+            {upload_url}
+            """,
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except OSError as e:
-        message = f"""There was an unexpected OSError on uploading the file: 
-        {e}.
-        """
+        raise HTTPException(
+            status_code=400,
+            detail=f"There was an unexpected OSError on uploading the file:{e.detail}",
+        )
     return TextSummaryModel(
         file_name=file_name,
         text_category=text_category,
@@ -225,8 +251,11 @@ async def upload_file(
 
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
+    if not question.prompt:
+        raise EmptyQuestionException(
+            "Your Question is empty, please type a message and resend it."
+        )
     if app.chat_engine:
-        # logging.debug(f"mark2: Token counter live?: {app.token_counter is not None}")
         app.token_counter.reset_counts()
         app.chat_engine.update_temp(question.temperature)
         response = app.chat_engine.answer_question(question)
@@ -251,6 +280,8 @@ async def clear_storage():
     for file in Path(cfd / "data").iterdir():
         os.remove(file)
     app.chat_engine = None
+    app.token_counter = None
+    app.callback_manager = None
     return TextResponseModel(message="Knowledge base succesfully cleared")
 
 
@@ -274,15 +305,6 @@ async def clear_history():
     },
 )
 def get_quiz():
-    from llama_index.output_parsers import LangchainOutputParser
-    from langchain.output_parsers import PydanticOutputParser
-    from llama_index.prompts.default_prompts import (
-        DEFAULT_TEXT_QA_PROMPT_TMPL,
-        DEFAULT_REFINE_PROMPT_TMPL,
-    )
-    from llama_index.prompts import PromptTemplate
-    from llama_index.response import Response
-
     if not app.chat_engine or not app.chat_engine.vector_index.ref_doc_info:
         raise HTTPException(
             status_code=400,
@@ -296,6 +318,22 @@ def get_quiz():
             Please provide a webpage url or a text file!
             """,
         )
+
+    quiz = generate_quiz_from_context()
+    return quiz
+
+    # return response.response_txt
+
+
+def generate_quiz_from_context():
+    from llama_index.output_parsers import LangchainOutputParser
+    from langchain.output_parsers import PydanticOutputParser
+    from llama_index.prompts.default_prompts import (
+        DEFAULT_TEXT_QA_PROMPT_TMPL,
+        DEFAULT_REFINE_PROMPT_TMPL,
+    )
+    from llama_index.prompts import PromptTemplate
+    from llama_index.response import Response
 
     vector_index = app.chat_engine.vector_index
 
@@ -321,14 +359,13 @@ def get_quiz():
     )
 
     return output_parser.parse(response.response)
-    # return response.response_txt
 
 
 if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "fastapi_app:app",
+        "backend.fastapi_app:app",
         host="0.0.0.0",
         port=8000,
         workers=1,

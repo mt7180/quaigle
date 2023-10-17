@@ -1,4 +1,4 @@
-# run ommand: streamlit run streamlit_app.py
+# run command from root: streamlit run streamlit_app.py
 import pathlib
 import random
 from fastapi import UploadFile
@@ -15,11 +15,12 @@ from PIL import Image
 from utils.helpers import register_page
 
 
-DEBUG = True
-API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
+DEBUG = False
+API_URL = "http://localhost:8000/" if DEBUG else "http://quaigleapi:8000/"
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
+cfd = pathlib.Path(__file__).parent
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
@@ -48,7 +49,7 @@ def set_page_settings():
         page_icon="🤖",
         layout="wide",
     )
-    with open("./static/style.css") as f:
+    with open(cfd / "static" / "style.css") as f:
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 
@@ -135,6 +136,8 @@ def display_options_menu():
             # menu_icon="cast",
             on_change=set_selected_page,
             default_index=translate.get(st.session_state["selected_page"], 0),
+            # small hack to prevent menu flom flicking to default
+            # in combination with chat input:
             manual_select=st.session_state["redirect_page"],
             orientation="horizontal",
             styles={
@@ -189,9 +192,13 @@ def post_data_to_backend(
                     response_data.get("used_tokens", 0)
                 )
             else:
-                st.error(f"Error: {response.status_code} - {response.text}")
+                st.sidebar.error(
+                    f'Error: {response.status_code} - {response.json().get("detail")}'
+                )
         except FileNotFoundError:
-            st.error("No context is given. Please provide a url or upload a file")
+            st.sidebar.error(
+                "No context is given. Please provide a url or upload a file"
+            )
 
 
 def uploader_callback():
@@ -238,7 +245,7 @@ def display_sidemenu():
             key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
         ):
-            success_message.success("File successfully uploaded")
+            success_message.success("File uploaded")
 
         if st.text_input(
             "text:",
@@ -247,7 +254,7 @@ def display_sidemenu():
             label_visibility="collapsed",
             on_change=url_callback,
         ):
-            success_message.success("url successfully uploaded")
+            success_message.success("url uploaded")
 
         with stylable_container(
             key="red_container",
@@ -314,7 +321,7 @@ def questionai():
                 message_placeholder.markdown(ai_answer)
                 add_vertical_space(7)
         elif len(st.session_state.messages) == 0:
-            cfd = pathlib.Path(__file__).parent
+            # cfd = pathlib.Path(__file__).parent
             image = Image.open(cfd / "static" / "main_picture3.png")
             _, center, _ = st.columns((1, 5, 1))
             center.image(
@@ -371,7 +378,7 @@ def quizme():
                     f"You answered {st.session_state.score} questions correct!"
                 )
             if not st.session_state["question_data"]:
-                cfd = pathlib.Path(__file__).parent
+                # cfd = pathlib.Path(__file__).parent
                 image = Image.open(cfd / "static" / "Hippo.png")
                 _, center, _ = st.columns((2, 4, 2))
                 center.image(

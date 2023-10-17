@@ -7,8 +7,15 @@ frontend/utils/request_wrapper.py
 *.pyc
 *.db
 *.sqlite
-*.html
+*.txt
 PoC_LlamaIndex/data
 PoC_LlamaIndex/storage
 PoC_marvin/data
 backend/storage
+tests/example_upload_files
+*.code-workspace
+.github
+tests/test_backend/test.py
+data
+db
+.pytest_cache
