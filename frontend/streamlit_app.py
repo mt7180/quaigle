@@ -193,7 +193,8 @@ def post_data_to_backend(
                 )
             else:
                 st.sidebar.error(
-                    f'Error: {response.status_code} - {response.json().get("detail")}'
+                    f"Error: {response.status_code} - {response}"
+                    # .json().get("msg")}'
                 )
         except FileNotFoundError:
             st.sidebar.error(
