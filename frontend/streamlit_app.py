@@ -15,8 +15,8 @@ from PIL import Image
 from utils.helpers import register_page
 
 
-DEBUG = True
-API_URL = "http://localhost:8000/" if DEBUG else "http://quagleapi:8000/"
+DEBUG = False
+API_URL = "http://localhost:8000/" if DEBUG else "http://quaigleapi:8000/"
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
