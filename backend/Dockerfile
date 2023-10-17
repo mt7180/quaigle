@@ -10,4 +10,4 @@ EXPOSE 8000:8000
 
 COPY . /app
 
-CMD ["uvicorn", "fastapi_app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "backend.fastapi_app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

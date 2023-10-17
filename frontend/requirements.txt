@@ -2,3 +2,5 @@ streamlit>=1.26.0
 streamlit-extras>=0.3.2
 streamlit-option-menu>=0.3.6
 requests
+fastapi>=0.99.1
+pandas>=2.1.0

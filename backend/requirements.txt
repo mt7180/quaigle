@@ -1,5 +1,13 @@
 marvin>=1.4.0
-fastapi>=0.103.1
+fastapi>=0.99.1
 pydantic
 python-dotenv
-python-multipart
+python-multipart>=0.0.6
+llama-index>=0.8.36
+langchain>=0.0.309
+regex>=2023.8.8
+ruff>=0.0.291
+certifi>=2023.7.22
+black>=23.9.1
+uvicorn>=0.23.2
+tiktoken>=0.5.1

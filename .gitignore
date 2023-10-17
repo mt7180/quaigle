@@ -16,3 +16,6 @@ tests/example_upload_files
 *.code-workspace
 .github
 tests/test_backend/test.py
+data
+db
+.pytest_cache

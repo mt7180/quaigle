@@ -1,5 +1,6 @@
 # command to run: uvicorn backend.fastapi_app:app --reload
 import re
+import shutil
 from typing import List
 from fastapi import FastAPI, HTTPException, UploadFile, Form
 from llama_index import ServiceContext
@@ -154,17 +155,24 @@ async def handle_uploadfile(
 
 async def handle_upload_url(upload_url):
     match re.split(r"[./]", upload_url):
-        case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
-            print(cfd)
-            if Path(cfd / "data" / (filename + ".sqlite")).is_file():
+        case ["sqlite:", _, _, dir, filename, "sqlite"]:  # if dir == "data":
+            full_filename = filename + ".sqlite"
+            if Path(cfd / dir / full_filename).is_file():
+                # small tweak: autom. copy the db from provided url to data folder
+                # sqlite:///db/database.sqlite
+                if dir != "data":
+                    destination_file = Path(cfd / "data" / full_filename)
+                    destination_file.parent.mkdir(exist_ok=True, parents=True)
+                    shutil.copy(cfd / dir / full_filename, destination_file)
+                    upload_url = upload_url.replace("///" + dir, "///data")
                 load_database_chat_engine()
                 document: AIDataBase = AIDataBase.from_uri(upload_url)
                 return document
-            elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
-                load_database_chat_engine()
-                url = "sqlite:///backend/data/" + filename + ".sqlite"
-                document: AIDataBase = AIDataBase.from_uri(url)
-                return document
+            # elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
+            #     load_database_chat_engine()
+            #     url = "sqlite:///backend/data/" + filename + ".sqlite"
+            #     document: AIDataBase = AIDataBase.from_uri(url)
+            #     return document
             else:
                 raise FileNotFoundError(
                     errno.ENOENT,
