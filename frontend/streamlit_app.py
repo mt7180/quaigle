@@ -135,6 +135,8 @@ def display_options_menu():
             # menu_icon="cast",
             on_change=set_selected_page,
             default_index=translate.get(st.session_state["selected_page"], 0),
+            # small hack to prevent menu flom flicking to default
+            # in combination with chat input:
             manual_select=st.session_state["redirect_page"],
             orientation="horizontal",
             styles={

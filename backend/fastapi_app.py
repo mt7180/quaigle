@@ -39,13 +39,13 @@ openai_log = "debug"
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
-# Set-up Chat Engine: CondenseQuestionChatEngine with RetrieverQueryEngine
-
-
 app = FastAPI()
 cfd = Path(__file__).parent
 
 
+# Set-up Chat Engine:
+# - LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine for text files
+# - or querying a database with langchain SQLDatabaseChain and Runnables
 app.chat_engine: CustomLlamaIndexChatEngineWrapper | DataChatBotWrapper | None = None
 app.callback_manager = None
 app.token_counter = None
@@ -117,11 +117,13 @@ class ErrorResponse(BaseModel):
 
 
 def load_text_chat_engine():
-    logging.debug(f"is there a chat engine?: {app.chat_engine is not None}")
     if not app.chat_engine or app.chat_engine.data_category == "database":
         logging.debug("setting up text chatbot")
-        app.chat_engine, app.callback_manager, app.token_counter = set_up_text_chatbot()
-        logging.debug(f"Token Count: {app.token_counter.total_llm_token_count}")
+        (
+            app.chat_engine,
+            app.callback_manager,
+            app.token_counter,
+        ) = set_up_text_chatbot()
 
 
 def load_database_chat_engine():
@@ -132,7 +134,6 @@ def load_database_chat_engine():
             app.callback_manager,  # is None in database mode
             app.token_counter,
         ) = set_up_database_chatbot()
-        logging.debug(f"Token counter there?: {app.token_counter is not None}")
 
 
 async def handle_uploadfile(
@@ -146,13 +147,6 @@ async def handle_uploadfile(
         case "txt":
             load_text_chat_engine()
             return AITextDocument(file_name, LLM_NAME, app.callback_manager)
-        # case "html":
-        #     load_text_chat_engine()
-        #     return AIHtmlDocument(
-        #         f"file://{str(cfd)}/data/{file_name}",
-        #         LLM_NAME,
-        #         app.callback_manager
-        #     )
         case "sqlite" | "db":
             load_database_chat_engine()
             return AIDataBase().from_uri(f"sqlite:///backend/data/{file_name}")
@@ -161,7 +155,12 @@ async def handle_uploadfile(
 async def handle_upload_url(upload_url):
     match re.split(r"[./]", upload_url):
         case ["sqlite:", _, _, dir, filename, "sqlite"] if dir == "data":
+            print(cfd)
             if Path(cfd / "data" / (filename + ".sqlite")).is_file():
+                load_database_chat_engine()
+                document: AIDataBase = AIDataBase.from_uri(upload_url)
+                return document
+            elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
                 load_database_chat_engine()
                 url = "sqlite:///backend/data/" + filename + ".sqlite"
                 document: AIDataBase = AIDataBase.from_uri(url)
@@ -193,7 +192,7 @@ async def handle_upload_url(upload_url):
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
 ):
-    # TOKEN_COUNTER.reset_counts()
+    # app.token_counter.reset_counts()
     message = ""
     text_category = ""
     file_name = ""
@@ -246,10 +245,9 @@ async def upload_file(
 async def qa_text(question: QuestionModel):
     if not question.prompt:
         raise EmptyQuestionException(
-            "Your Question is empty, please make type a message and resend."
+            "Your Question is empty, please type a message and resend it."
         )
     if app.chat_engine:
-        # logging.debug(f"mark2: Token counter live?: {app.token_counter is not None}")
         app.token_counter.reset_counts()
         app.chat_engine.update_temp(question.temperature)
         response = app.chat_engine.answer_question(question)
@@ -299,15 +297,6 @@ async def clear_history():
     },
 )
 def get_quiz():
-    from llama_index.output_parsers import LangchainOutputParser
-    from langchain.output_parsers import PydanticOutputParser
-    from llama_index.prompts.default_prompts import (
-        DEFAULT_TEXT_QA_PROMPT_TMPL,
-        DEFAULT_REFINE_PROMPT_TMPL,
-    )
-    from llama_index.prompts import PromptTemplate
-    from llama_index.response import Response
-
     if not app.chat_engine or not app.chat_engine.vector_index.ref_doc_info:
         raise HTTPException(
             status_code=400,
@@ -321,6 +310,22 @@ def get_quiz():
             Please provide a webpage url or a text file!
             """,
         )
+
+    quiz = generate_quiz_from_context()
+    return quiz
+
+    # return response.response_txt
+
+
+def generate_quiz_from_context():
+    from llama_index.output_parsers import LangchainOutputParser
+    from langchain.output_parsers import PydanticOutputParser
+    from llama_index.prompts.default_prompts import (
+        DEFAULT_TEXT_QA_PROMPT_TMPL,
+        DEFAULT_REFINE_PROMPT_TMPL,
+    )
+    from llama_index.prompts import PromptTemplate
+    from llama_index.response import Response
 
     vector_index = app.chat_engine.vector_index
 
@@ -346,7 +351,6 @@ def get_quiz():
     )
 
     return output_parser.parse(response.response)
-    # return response.response_txt
 
 
 if __name__ == "__main__":
