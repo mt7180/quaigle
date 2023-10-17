@@ -1,4 +1,4 @@
-# run command from root: streamlit run frontend/streamlit_app.py
+# run command from root: streamlit run streamlit_app.py
 import pathlib
 import random
 from fastapi import UploadFile

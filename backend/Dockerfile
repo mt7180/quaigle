@@ -8,6 +8,6 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
 EXPOSE 8000:8000
 
-COPY . /app_backend
+COPY . /app_backend/code
 
-CMD ["uvicorn", "fastapi_app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "code.fastapi_app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

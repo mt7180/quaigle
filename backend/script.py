@@ -26,7 +26,8 @@ from llama_index.memory import ChatMemoryBuffer
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
-from llama_index.bridge.pydantic import BaseModel, Field
+from llama_index.bridge.pydantic import BaseModel as LlamaBaseModel
+from llama_index.bridge.pydantic import Field as LlamaField
 import pathlib
 import tiktoken
 import logging
@@ -79,7 +80,7 @@ class AITextDocument:
         return MetadataExtractor(
             extractors=[
                 MarvinMetadataExtractor(
-                    marvin_model=AITextDocument.AIDocument,
+                    marvin_model=AIMarvinDocument,
                     llm_model_string=llm_str,
                     show_progress=True,
                     callback_manager=self.callback_manager,
@@ -97,20 +98,21 @@ class AITextDocument:
         )
         return node_parser.get_nodes_from_documents([self.document])
 
-    @ai_model
-    class AIDocument(BaseModel):
-        description: str = Field(
-            ...,
-            description="""A brief summary of the main content of the
-            document.
-            """,
-        )
-        category: str = Field(
-            ...,
-            description=f"""best matching text category from the following list: 
-            {str(CATEGORY_LABELS)}
-            """,
-        )
+
+@ai_model
+class AIMarvinDocument(LlamaBaseModel):
+    description: str = LlamaField(
+        ...,
+        description="""A brief summary of the main content of the
+        document.
+        """,
+    )
+    category: str = LlamaField(
+        ...,
+        description=f"""best matching text category from the following list: 
+        {str(CATEGORY_LABELS)}
+        """,
+    )
 
 
 class AIHtmlDocument(AITextDocument):
