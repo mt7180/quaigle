@@ -35,7 +35,7 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
-DEBUG_MODE = int(os.getenv("DEBUG"))
+DEBUG_MODE = int(os.getenv("DEBUG", 1))
 print("debug status: ", DEBUG_MODE)
 
 if DEBUG_MODE:

@@ -5,8 +5,10 @@
 
 app = "quaigleapi"
 primary_region = "ams"
+swap_size_mb = 512
 
 [build]
+
 
 [http_service]
   internal_port = 8000
