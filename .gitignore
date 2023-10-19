@@ -1,4 +1,5 @@
 venv
+b_venv
 *.env
 frontend/static/old_files
 .DS_Store
@@ -19,3 +20,4 @@ tests/test_backend/test.py
 data
 db
 .pytest_cache
+outdated

@@ -10,14 +10,27 @@ import requests
 import os
 import sys
 import logging
+import certifi
 from PIL import Image
+from dotenv import load_dotenv
 
 from utils.helpers import register_page
 
 
-DEBUG = False
-API_URL = "http://localhost:8000/" if DEBUG else "http://quaigleapi:8000/"
+# workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+os.environ["SSL_CERT_FILE"] = certifi.where()
+LLM_NAME = "gpt-3.5-turbo"
 
+load_dotenv()
+DEBUG_STATUS = int(os.getenv("DEBUG", 1))
+# API_URL = "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi:8000/"
+# API_URL = "http://localhost:8000/" if DEBUG_STATUS else "https://quaigleapi.fly.dev:8000/"
+API_URL = (
+    "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi.internal:8000"
+)
+
+print(API_URL)
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
 cfd = pathlib.Path(__file__).parent
@@ -200,6 +213,8 @@ def post_data_to_backend(
             st.sidebar.error(
                 "No context is given. Please provide a url or upload a file"
             )
+        except requests.RequestException as e:
+            st.sidebar.error(f"Server Request Error: is backend {API_URL} up? {e}")
 
 
 def uploader_callback():
