@@ -1,0 +1,29 @@
+name: code_quality_checks
+
+on:
+  push:
+    branches:
+      - 41-set-up-github-actions
+
+jobs: 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v3
+
+      - name: set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.10
+
+      - name: install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: lint with black
+        uses: psf/black@stable
+      
+      - name: lint with ruff
+        uses: chartboost/ruff-action@v1
