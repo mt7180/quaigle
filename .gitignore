@@ -19,3 +19,4 @@ tests/test_backend/test.py
 data
 db
 .pytest_cache
+b_venv
