@@ -1,10 +1,7 @@
 name: code_quality_checks
 
-on:
-  push:
-    branches:
-      - 41-set-up-github-actions
-
+on: push
+   
 jobs: 
   lint:
     runs-on: ubuntu-latest
