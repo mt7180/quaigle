@@ -13,6 +13,7 @@ import logging
 import certifi
 from PIL import Image
 from dotenv import load_dotenv
+import sentry_sdk
 
 from utils.helpers import register_page
 
@@ -30,7 +31,12 @@ API_URL = (
     "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi.internal:8000"
 )
 
-print(API_URL)
+if not DEBUG_STATUS:
+    logging_level = logging.INFO
+    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    sentry_sdk.init(SENTRY_DSN)
+
+
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
 cfd = pathlib.Path(__file__).parent

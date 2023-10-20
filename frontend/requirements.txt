@@ -11,3 +11,4 @@ jsonschema-specifications==2023.7.1
 cachetools==5.3.1
 certifi==2023.7.22
 python-dotenv
+sentry-sdk>=1.32.0

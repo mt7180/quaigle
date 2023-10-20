@@ -171,37 +171,6 @@ async def handle_uploadfile(
 
 async def handle_upload_url(upload_url):
     match re.split(r"[./]", upload_url):
-        # case ["sqlite:", _, _, dir, filename, "sqlite"]:  # if dir == "data":
-        #     full_filename = filename + ".sqlite"
-        #     if Path(cfd / dir / full_filename).is_file():
-        #         # small tweak: autom. copy the db from provided url to data folder
-        #         # sqlite:///db/amazon_small.sqlite
-        #         url = upload_url
-        #         if dir != "data":
-        #             destination_file = Path(cfd / "data" / full_filename)
-        #             destination_file.parent.mkdir(exist_ok=True, parents=True)
-        #             shutil.copy(cfd / dir / full_filename, destination_file)
-        #             if DEBUG:
-        #                 url = upload_url.replace("///" + dir, "///backend/data")
-
-        #             else:
-        #                 url = upload_url.replace("///" + dir, "///code/data")
-        #         print("url")
-        #         load_database_chat_engine()
-        #         print(url, cfd)
-        #         document: AIDataBase = AIDataBase.from_uri(url)
-        #         return document
-        #     # elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
-        #     #     load_database_chat_engine()
-        #     #     url = "sqlite:///backend/data/" + filename + ".sqlite"
-        #     #     document: AIDataBase = AIDataBase.from_uri(url)
-        #     #     return document
-        #     else:
-        #         raise FileNotFoundError(
-        #             errno.ENOENT,
-        #             os.strerror(errno.ENOENT) + " in data folder",
-        #             upload_url,
-        #         )
         case [*_, dir, file_name, "txt"] if dir == "data":
             try:
                 load_text_chat_engine()
@@ -267,6 +236,8 @@ async def upload_file(
             status_code=400,
             detail=f"There was an unexpected OSError on uploading the file:{e.detail}",
         )
+    logging.debug(f"engine_up?: {app.chat_engine is not None}")
+    logging.debug(f"message: {message}")
     return TextSummaryModel(
         file_name=file_name,
         text_category=text_category,
@@ -277,6 +248,7 @@ async def upload_file(
 
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
+    logging.debug(f"engine_up?: {app.chat_engine is not None}")
     if not question.prompt:
         raise EmptyQuestionException(
             "Your Question is empty, please type a message and resend it."
