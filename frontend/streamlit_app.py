@@ -25,8 +25,7 @@ LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
 DEBUG_STATUS = int(os.getenv("DEBUG", 1))
-# API_URL = "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi:8000/"
-# API_URL = "http://localhost:8000/" if DEBUG_STATUS else "https://quaigleapi.fly.dev:8000/"
+
 API_URL = (
     "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi.internal:8000"
 )
