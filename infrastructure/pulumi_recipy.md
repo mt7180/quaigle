@@ -1,4 +1,4 @@
-# How-To get started with pulumi & AWS
+# How-To get started with pulumi & AWS & python
 ---
 link to the docs: https://www.pulumi.com/docs/
 
@@ -6,7 +6,7 @@ link to the docs: https://www.pulumi.com/docs/
 - create a pulumi account on website
 - install pulumi cli (on macOS: brew install pulumi/tap/pulumi)
 - create an account for aws
-- create an ami user with permission for e.g. AmazonFullAcessEC2 or S3 in the aws management console in access management / Users => aws_access_key_id
+- create an iam user with permission for e.g. AmazonFullAcessEC2 or S3 in the aws management console in access management / Users => aws_access_key_id
 - after creating the ami user, clic on the user name and open the tab security credentials, create an access key for programmatical access (aws_secret_access_key)
 - install aws cli (on mac: brew install awscli)
 - run command "aws configure", you will be prompted for AWS Access Key ID and AWS Secret Access Key => a credentials file is created in user dir: ~/.aws/credentials
