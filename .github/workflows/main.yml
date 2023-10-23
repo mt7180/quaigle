@@ -34,30 +34,56 @@ jobs:
               uses: chartboost/ruff-action@v1
     
     lint_backend:
-                name: lint backend
-                runs-on: ubuntu-latest
-                defaults:
-                    run:
-                        working-directory: ./backend
-                steps:
-                    - name: Checkout code
-                      uses: actions/checkout@v3
-        
-                    - name: Echo job and branchname
-                      run: echo "Running ${{ github.job }} on ${{ github.ref }}"
-        
-                    - name: set up python
-                      uses: actions/setup-python@v2
-                      with:
-                        python-version: '3.10'
-        
-                    - name: install dependencies
-                      run: |
-                        python -m pip install --upgrade pip
-                        pip install -r requirements.txt
-        
-                    - name: lint with black
-                      uses: psf/black@stable
-                    
-                    - name: lint with ruff
-                      uses: chartboost/ruff-action@v1
+        name: lint backend
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./backend
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v3
+
+            - name: Echo job and branchname
+              run: echo "Running ${{ github.job }} on ${{ github.ref }}"
+
+            - name: set up python
+              uses: actions/setup-python@v2
+              with:
+                python-version: '3.10'
+
+            - name: install dependencies
+              run: |
+                python -m pip install --upgrade pip
+                pip install -r requirements.txt
+
+            - name: lint with black
+              uses: psf/black@stable
+            
+            - name: lint with ruff
+              uses: chartboost/ruff-action@v1          
+                      
+    # deploy_backend:
+    #     if: ${{ github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' }}
+    #     name: deploy backend with pulumi
+    #     runs-on: ubuntu-latest
+    #     defaults:
+    #         run:
+    #             working-directory: ./backend
+    #     steps:
+    #     - uses: actions/checkout@v2
+    #     - uses: actions/setup-python@v2
+        # with:
+        #     python-version: '3.10'
+    #     - name: Configure AWS Credentials
+    #       uses: aws-actions/configure-aws-credentials@v1
+    #       with:
+    #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #         aws-region: ${{ secrets.AWS_REGION }}
+    #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     - run: npm install
+    #     - uses: pulumi/actions@v3
+    #       with:
+    #         command: up
+    #         stack-name: stack-name # When using an individual account, only use stack-name.
+    #       env:
+    #         PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
