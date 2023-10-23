@@ -5,7 +5,7 @@
 
 app = "quaigleapi"
 primary_region = "ams"
-swap_size_mb = 512
+# swap_size_mb = 512  # has no effect
 
 [build]
 

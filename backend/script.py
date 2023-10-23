@@ -157,7 +157,7 @@ class CustomLlamaIndexChatEngineWrapper:
         set_global_service_context(self.service_context)
         self.documents = []
         storage_dir = CustomLlamaIndexChatEngineWrapper.cfd / "storage"
-        os.makedirs(storage_dir, exist_ok=True)
+        storage_dir.mkdir(parents=True, exist_ok=True)
         logging.info(f"storage dir exists: {os.path.exists(storage_dir)}")
         if any(
             pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "storage").iterdir()

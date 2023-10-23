@@ -201,7 +201,6 @@ async def upload_file(
         if upload_file:
             if upload_url:
                 raise DoubleUploadException("You can not provide both, file and URL.")
-            # os.makedirs("data", exist_ok=True)
             file_name = upload_file.filename
             destination_file = Path(cfd / "data" / file_name)
             destination_file.parent.mkdir(exist_ok=True, parents=True)
@@ -275,7 +274,7 @@ async def clear_storage():
     if app.chat_engine:
         app.chat_engine.clear_data_storage()
         logging.debug("chat engine cleared...")
-    if os.path.exists(cfd / "data"):
+    if (cfd / "data").exists():
         for file in Path(cfd / "data").iterdir():
             os.remove(file)
     app.chat_engine = None
