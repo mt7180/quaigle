@@ -7,7 +7,6 @@ on:
       - 'frontend/**'
       - 'backend/**'
       - 'infrastructure/**'
-      - '.github/workflows/**'
    
 jobs:
   detect_changes:
@@ -16,7 +15,6 @@ jobs:
         backend: ${{ steps.changes.outputs.backend }}
         frontend: ${{ steps.changes.outputs.frontend }}
         infrastructure: ${{ steps.changes.outputs.infrastructure }}
-        workflows: ${{ steps.changes.outputs.workflows }}
       steps:
         - uses: actions/checkout@v3
         - uses: dorny/paths-filter@v2
@@ -30,8 +28,7 @@ jobs:
                 - 'backend/**'
               infrastructure:
                 - 'infrastructure/**'
-              workflows:
-                - 'infrastructure/**'
+            
     
   lint_frontend:
       name: lint frontend
