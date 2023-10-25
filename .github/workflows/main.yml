@@ -127,7 +127,7 @@ jobs:
           uses: pulumi/actions@v3
           with:
             command: preview
-            stack-name: dev # When using an individual account, only use stack-name.
+            stack-name: mt7180/quaigle_backend/dev # When using an individual account, only use stack-name.
           env:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}

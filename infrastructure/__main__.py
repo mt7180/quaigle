@@ -129,7 +129,6 @@ run_docker_image = f"""
 
 user_data = install_docker + run_docker_image
 
-
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
     "quaigle_aws_ec2_ubuntu",
