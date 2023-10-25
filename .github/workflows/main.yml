@@ -90,7 +90,7 @@ jobs:
     deploy_frontend:
         name: deploy frontend
         needs: changes
-        if: ${{ github.ref == 'refs/heads/45-deploy-to-fly' && needs.changes.outputs.frontend == 'true' }}
+        if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.frontend == 'true' }}
         runs-on: ubuntu-latest
         defaults:
             run:
