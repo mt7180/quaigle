@@ -112,7 +112,6 @@ sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
-# Add the repository to Apt sources:
 echo \
   "deb [arch="$(dpkg --print-architecture)" \
   signed-by=/etc/apt/keyrings/docker.gpg] {docker_url} \
