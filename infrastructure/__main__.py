@@ -146,22 +146,29 @@ ec2_logs_policy_attachment = iam.RolePolicyAttachment(
 ec2_instance_profile = iam.InstanceProfile("ec2InstanceProfile", role=ec2_role.name)
 
 docker_url = "https://download.docker.com/linux/ubuntu"
-install_docker = f"""sudo apt update
-sudo apt install apt-transport-https ca-certificates curl software-properties-common
-curl -fsSL {docker_url}/gpg | sudo apt-key add -
-sudo add-apt-repository "deb [arch=amd64] {docker_url} $(lsb_release -cs) stable"
-sudo apt update
-sudo apt install docker-ce
+install_docker = f"""sudo apt-get update
+sudo apt-get install ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch="$(dpkg --print-architecture)" \
+  signed-by=/etc/apt/keyrings/docker.gpg] {docker_url} \
+  "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
 """
 
-user_data = f"""
-somehow install docker ?! 
-export GIT_TOKEN={os.getenv("GIT_TOKEN")}
-docker login --username name --password GIT_TOKEN ghcr.io
-docker run ghcr.io/{os.getenv("GIT_NAME")}/{os.getenv("APP_NAME")}:latest
+run_docker_image = f"""
+    export GIT_TOKEN={os.getenv("GIT_TOKEN")}
+    docker login --username name --password GIT_TOKEN ghcr.io
+    docker run ghcr.io/{os.getenv("GIT_NAME")}/{os.getenv("APP_NAME")}:latest
+    """
+user_data = install_docker + run_docker_image
 
 
-"""
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
     f"{stack_name}-instance",

@@ -1,12 +1,12 @@
-name: code quality checks
-run-name: quality checks triggered by @${{ github.actor }}
+name: CICD
+run-name: CI/CD triggered by @${{ github.actor }}
 
 on: 
   push:
     paths: 
-      - "frontend/**"
-      - "backend/**"
-      - "infrastructure/**"
+      - 'frontend/**'
+      - 'backend/**'
+      - 'infrastructure/**'
    
 jobs:
   detect_changes:
@@ -20,6 +20,7 @@ jobs:
         - uses: dorny/paths-filter@v2
           id: changes
           with:
+            base: ${{ github.ref }} 
             filters: |
               frontend:
                 - 'frontend/**'
@@ -31,7 +32,7 @@ jobs:
   lint_frontend:
       name: lint frontend
       needs: detect_changes
-      if: ${{ needs.detect_changes.outputs.frontend == true }}
+      if: ${{ needs.detect_changes.outputs.frontend == 'true' }}
       runs-on: ubuntu-latest
       defaults:
           run:
@@ -62,7 +63,7 @@ jobs:
   lint_backend:
       name: lint backend
       needs: detect_changes
-      if: ${{ needs.detect_changes.outputs.backend == true }}
+      if: ${{ needs.detect_changes.outputs.backend == 'true' }}
       runs-on: ubuntu-latest
       defaults:
         run:
@@ -93,8 +94,11 @@ jobs:
   setup_backend_infrastructure: # test first with preview istead of up
       name: setup backend infrastructure
       needs: detect_changes
-      if: 
-        ${{ github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && needs.detect_changes.outputs.infrastructure == true}}
+      if: |
+        ${{ ( 
+          github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+          needs.detect_changes.outputs.infrastructure == 'true'
+        ) }}
       runs-on: ubuntu-latest
       defaults:
         run:
@@ -129,7 +133,7 @@ jobs:
   deploy_backend:
     name: deploy backend
     needs: detect_changes
-    if: ${{ needs.detect_changes.outputs.backend == true }}
+    if: ${{ needs.detect_changes.outputs.backend == 'dontwantyoutorunyet' }} 
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -170,9 +174,6 @@ jobs:
             docker image rmi APP_NAME:latest
             docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest &&
           '
-        
-
-
 
     #     name: deploy backend with pulumi
     #     runs-on: ubuntu-latest
