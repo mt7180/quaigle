@@ -200,7 +200,6 @@ async def handle_upload_url(upload_url):
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
 ):
-    # app.token_counter.reset_counts()
     message = ""
     text_category = ""
     file_name = ""

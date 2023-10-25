@@ -154,8 +154,8 @@ jobs:
       - name: Build and push image to GHCR
         run: |
           docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io
-          docker build . -t ghcr.io/${{ github.actor }}/${{ github.repository }}:latest
-          docker push ghrc.io/${{ github.actor }}/${{ github.repository }}:latest
+          docker build . -t ghcr.io/${{ github.repository }}:latest
+          docker push ghrc.io/${{ github.repository }}:latest
         
       # - name: Install Pulumi CLI
       #   uses: pulumi/action-install-pulumi-cli@v1.1.0
