@@ -7,6 +7,7 @@ on:
       - 'frontend/**'
       - 'backend/**'
       - 'infrastructure/**'
+      - '.github/workflows/**'
    
 jobs:
   detect_changes:
@@ -15,6 +16,7 @@ jobs:
         backend: ${{ steps.changes.outputs.backend }}
         frontend: ${{ steps.changes.outputs.frontend }}
         infrastructure: ${{ steps.changes.outputs.infrastructure }}
+        workflows: ${{ steps.changes.outputs.workflows }}
       steps:
         - uses: actions/checkout@v3
         - uses: dorny/paths-filter@v2
@@ -27,6 +29,8 @@ jobs:
               backend:
                 - 'backend/**'
               infrastructure:
+                - 'infrastructure/**'
+              workflows:
                 - 'infrastructure/**'
     
   lint_frontend:
@@ -98,7 +102,10 @@ jobs:
         ${{ ( 
           github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
           needs.detect_changes.outputs.infrastructure == 'true'
-        ) }}
+        ) || ( 
+          github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+          needs.detect_changes.outputs.workflows == 'true'
+        )}}
       runs-on: ubuntu-latest
       outputs:
         instance_public_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
@@ -126,13 +133,12 @@ jobs:
           id: pulumi
           uses: pulumi/actions@v3
           with:
-            command: preview
+            command: up
             stack-name: mt7180/quaigle_backend/dev # When using an individual account, only use stack-name.
             work-dir: ./infrastructure
           env:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}
-            GIT_TOKEN : ${{ secrets.GH_PAT}} # to get access to ghcr
             GIT_USER : ${{ github.actor }}
 
   deploy_backend:
@@ -207,4 +213,4 @@ jobs:
     #         stack-name: stack-name # When using an individual account, only use stack-name.
     #       env:
     #         PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-    #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #         

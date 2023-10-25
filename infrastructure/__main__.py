@@ -121,9 +121,9 @@ sudo apt-get update
 """
 
 run_docker_image = f"""
-    export GIT_TOKEN={os.getenv("GIT_TOKEN")}
-    docker login --username {os.getenv("GIT_NAME")} --password GIT_TOKEN ghcr.io
-    docker run ghcr.io/{os.getenv("GIT_NAME")}/{os.getenv("APP_NAME")}:latest
+    export GIT_TOKEN=token
+    docker login --username {os.getenv("GIT_USER")} --password GIT_TOKEN ghcr.io
+    docker run ghcr.io/{os.getenv("APP_NAME")}:latest
     """
 
 user_data = install_docker + run_docker_image
