@@ -18,6 +18,3 @@ tests/test_backend/test.py
 PoC_LlamaIndex/data
 PoC_LlamaIndex/storage
 PoC_marvin/data
-
-
-

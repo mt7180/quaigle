@@ -1,6 +1,6 @@
 # command to run: uvicorn backend.fastapi_app:app --reload
+import os
 import re
-import shutil
 from typing import List
 from fastapi import FastAPI, HTTPException, UploadFile, Form
 from llama_index import ServiceContext
@@ -12,9 +12,9 @@ import logging
 import sys
 from dotenv import load_dotenv
 from pathlib import Path
-import os
 import errno
 import certifi
+import sentry_sdk
 
 from .script import (
     AITextDocument,
@@ -35,14 +35,27 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
-openai_log = "debug"
+DEBUG_MODE = int(os.getenv("DEBUG", 1))
+print("debug status: ", DEBUG_MODE)
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+if DEBUG_MODE:
+    openai_log = "debug"
+    logging_level = logging.DEBUG
+    app_dir = "backend"
+else:
+    logging_level = logging.INFO
+    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    sentry_sdk.init(SENTRY_DSN)
+    app_dir = "code"
+
+
+logging.basicConfig(stream=sys.stdout, level=logging_level)
 logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 
 app = FastAPI()
 cfd = Path(__file__).parent
-
+data_dir = "data"
+logging.info(f"current file dir fastapiapp: {cfd}")
 
 # Set-up Chat Engine:
 # - LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine for text files
@@ -120,6 +133,7 @@ class ErrorResponse(BaseModel):
 def load_text_chat_engine():
     if not app.chat_engine or app.chat_engine.data_category == "database":
         logging.debug("setting up text chatbot")
+        logging.debug(f"Debug: {DEBUG_MODE}")
         (
             app.chat_engine,
             app.callback_manager,
@@ -141,44 +155,22 @@ async def handle_uploadfile(
     upload_file: UploadFile,
 ) -> AITextDocument | AIDataBase | None:
     file_name = upload_file.filename
-    with open(cfd / "data" / file_name, "wb") as f:
+    with open(cfd / data_dir / file_name, "wb") as f:
         f.write(await upload_file.read())
-    logging.debug(upload_file.filename.split(".")[-1])
     match upload_file.filename.split(".")[-1]:
         case "txt":
             load_text_chat_engine()
             return AITextDocument(file_name, LLM_NAME, app.callback_manager)
         case "sqlite" | "db":
+            uri = f"sqlite:///{app_dir}/{data_dir}/{file_name}"
+            logging.debug(f"uri: {uri} debug {DEBUG_MODE}")
             load_database_chat_engine()
-            return AIDataBase().from_uri(f"sqlite:///backend/data/{file_name}")
+            document: AIDataBase = AIDataBase.from_uri(uri)
+            return document
 
 
 async def handle_upload_url(upload_url):
     match re.split(r"[./]", upload_url):
-        case ["sqlite:", _, _, dir, filename, "sqlite"]:  # if dir == "data":
-            full_filename = filename + ".sqlite"
-            if Path(cfd / dir / full_filename).is_file():
-                # small tweak: autom. copy the db from provided url to data folder
-                # sqlite:///db/amazon.sqlite
-                if dir != "data":
-                    destination_file = Path(cfd / "data" / full_filename)
-                    destination_file.parent.mkdir(exist_ok=True, parents=True)
-                    shutil.copy(cfd / dir / full_filename, destination_file)
-                    upload_url = upload_url.replace("///" + dir, "///data")
-                load_database_chat_engine()
-                document: AIDataBase = AIDataBase.from_uri(upload_url)
-                return document
-            # elif Path(cfd / "backend" / "data" / (filename + ".sqlite")).is_file():
-            #     load_database_chat_engine()
-            #     url = "sqlite:///backend/data/" + filename + ".sqlite"
-            #     document: AIDataBase = AIDataBase.from_uri(url)
-            #     return document
-            else:
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT) + " in data folder",
-                    upload_url,
-                )
         case [*_, dir, file_name, "txt"] if dir == "data":
             try:
                 load_text_chat_engine()
@@ -209,9 +201,11 @@ async def upload_file(
         if upload_file:
             if upload_url:
                 raise DoubleUploadException("You can not provide both, file and URL.")
-            os.makedirs("data", exist_ok=True)
-            document = await handle_uploadfile(upload_file)
             file_name = upload_file.filename
+            destination_file = Path(cfd / "data" / file_name)
+            destination_file.parent.mkdir(exist_ok=True, parents=True)
+            document = await handle_uploadfile(upload_file)
+
         elif upload_url:
             document = await handle_upload_url(upload_url)
             file_name = upload_url
@@ -241,6 +235,8 @@ async def upload_file(
             status_code=400,
             detail=f"There was an unexpected OSError on uploading the file:{e.detail}",
         )
+    logging.debug(f"engine_up?: {app.chat_engine is not None}")
+    logging.debug(f"message: {message}")
     return TextSummaryModel(
         file_name=file_name,
         text_category=text_category,
@@ -251,6 +247,7 @@ async def upload_file(
 
 @app.post("/qa_text", response_model=QAResponseModel)
 async def qa_text(question: QuestionModel):
+    logging.debug(f"engine_up?: {app.chat_engine is not None}")
     if not question.prompt:
         raise EmptyQuestionException(
             "Your Question is empty, please type a message and resend it."
@@ -277,8 +274,9 @@ async def clear_storage():
     if app.chat_engine:
         app.chat_engine.clear_data_storage()
         logging.debug("chat engine cleared...")
-    for file in Path(cfd / "data").iterdir():
-        os.remove(file)
+    if (cfd / "data").exists():
+        for file in Path(cfd / "data").iterdir():
+            os.remove(file)
     app.chat_engine = None
     app.token_counter = None
     app.callback_manager = None

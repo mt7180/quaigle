@@ -31,6 +31,7 @@ from llama_index.bridge.pydantic import Field as LlamaField
 import pathlib
 import tiktoken
 import logging
+import os
 
 from .document_categories import CATEGORY_LABELS
 
@@ -155,7 +156,9 @@ class CustomLlamaIndexChatEngineWrapper:
         self.service_context = self._create_service_context()
         set_global_service_context(self.service_context)
         self.documents = []
-
+        storage_dir = CustomLlamaIndexChatEngineWrapper.cfd / "storage"
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        logging.info(f"storage dir exists: {os.path.exists(storage_dir)}")
         if any(
             pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "storage").iterdir()
         ):
@@ -166,6 +169,7 @@ class CustomLlamaIndexChatEngineWrapper:
                 storage_context=self.storage_context
             )
         else:
+            logging.info("creating new vec index")
             self.vector_index = self.create_vector_index()
         self.chat_engine = self.create_chat_engine()
 
@@ -205,7 +209,7 @@ class CustomLlamaIndexChatEngineWrapper:
                 node for doc in self.documents for node in doc.nodes
             ],  # current use case: no docs availabe, so empty list []
             service_context=self.service_context,
-            storage_context=self.storage_context,
+            # storage_context=self.storage_context,
         )  # openai api is called with whole text to make the embeddings
 
     def _add_to_vector_index(self, nodes):
@@ -282,7 +286,6 @@ def set_up_text_chatbot():
 
 
 if __name__ == "__main__":
-    import os
     import sys
     import certifi
     from dotenv import load_dotenv

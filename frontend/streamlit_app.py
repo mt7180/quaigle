@@ -10,13 +10,31 @@ import requests
 import os
 import sys
 import logging
+import certifi
 from PIL import Image
+from dotenv import load_dotenv
+import sentry_sdk
 
 from utils.helpers import register_page
 
 
-DEBUG = False
-API_URL = "http://localhost:8000/" if DEBUG else "http://quaigleapi:8000/"
+# workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
+os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
+os.environ["SSL_CERT_FILE"] = certifi.where()
+LLM_NAME = "gpt-3.5-turbo"
+
+load_dotenv()
+DEBUG_STATUS = int(os.getenv("DEBUG", 1))
+
+API_URL = (
+    "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi.internal:8000"
+)
+
+if not DEBUG_STATUS:
+    logging_level = logging.INFO
+    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    sentry_sdk.init(SENTRY_DSN)
+
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
@@ -193,12 +211,15 @@ def post_data_to_backend(
                 )
             else:
                 st.sidebar.error(
-                    f'Error: {response.status_code} - {response.json().get("detail")}'
+                    f"Error: {response.status_code} - {response}"
+                    # .json().get("msg")}'
                 )
         except FileNotFoundError:
             st.sidebar.error(
                 "No context is given. Please provide a url or upload a file"
             )
+        except requests.RequestException as e:
+            st.sidebar.error(f"Server Request Error: is backend {API_URL} up? {e}")
 
 
 def uploader_callback():
@@ -425,10 +446,12 @@ def post_ai_message_to_chat(message, document_category):
 
 
 def main():
+    """set up the streamlit app"""
     set_page_settings()
     initialize_session()
     display_header()
     display_sidemenu()
+    # implement the selected page from options menu
     MAIN_PAGE[st.session_state.selected_page]()
 
 
