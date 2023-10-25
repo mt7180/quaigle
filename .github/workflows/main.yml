@@ -6,7 +6,6 @@ on:
     paths: 
       - "frontend/**"
       - "backend/**"
-      - "infrastructure/**"
    
 jobs:
     detect_changes:

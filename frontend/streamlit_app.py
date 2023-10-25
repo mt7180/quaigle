@@ -446,6 +446,7 @@ def post_ai_message_to_chat(message, document_category):
 
 
 def main():
+    """set up the streamlit app"""
     set_page_settings()
     initialize_session()
     display_header()
