@@ -127,7 +127,7 @@ jobs:
           uses: pulumi/actions@v3
           with:
             command: preview
-            stack-name: quaigle_backend/dev # When using an individual account, only use stack-name.
+            stack-name: dev # When using an individual account, only use stack-name.
           env:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}
@@ -150,7 +150,7 @@ jobs:
         uses: pulumi/action-install-pulumi-cli@v1.1.0
       - run: |
           pulumi login
-          pulumi stack select quaigle/dev
+          pulumi stack select dev
           echo "ec2_inst_id=$(pulumi stack output ec2_instance_id)" >> "$GITHUB_ENV"   #?????
           
       - name: Build and push image to GHCR
