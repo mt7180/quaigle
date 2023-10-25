@@ -1,5 +1,7 @@
 FROM python:3.10
 
+ENV DEBUG 0
+
 WORKDIR /app_backend
 
 COPY ./requirements.txt ./requirements.txt
