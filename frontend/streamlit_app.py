@@ -451,7 +451,7 @@ def main():
     initialize_session()
     display_header()
     display_sidemenu()
-    # put in selected page from options menu
+    # implement the selected page from options menu
     MAIN_PAGE[st.session_state.selected_page]()
 
 

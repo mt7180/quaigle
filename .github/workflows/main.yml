@@ -4,11 +4,11 @@ run-name: CICD triggered by @${{ github.actor }}
 on: 
   push:
     paths: 
-      - "frontend/**"
-      - "backend/**"
+      - 'frontend/**'
+      - 'backend/**'
    
 jobs:
-    detect_changes:
+    changes:
       runs-on: ubuntu-latest
       outputs:
         backend: ${{ steps.changes.outputs.backend }}
@@ -24,11 +24,19 @@ jobs:
                 - 'frontend/**'
               backend:
                 - 'backend/**'
+
+    test_detect_changes:
+      needs: changes
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v3
+        - run: echo ${{ needs.changes.outputs.backend }}
+        - run: echo ${{ needs.changes.outputs.frontend }}
               
     lint_frontend:
         name: lint frontend
-        needs: detect_changes
-        if: ${{ needs.detect_changes.outputs.frontend == true }}
+        needs: changes
+        if: ${{ needs.changes.outputs.frontend == 'true' }}
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -58,8 +66,8 @@ jobs:
     
     lint_backend:
         name: lint backend
-        needs: detect_changes
-        if: ${{ needs.detect_changes.outputs.backend == true }}
+        needs: changes
+        if: ${{ needs.changes.outputs.backend == 'true' }}
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -89,8 +97,8 @@ jobs:
 
     deploy_frontend:
         name: deploy frontend
-        needs: detect_changes
-        if: ${{ github.ref == 'refs/heads/45-deploy-to-fly' && needs.detect_changes.outputs.frontend == true }}
+        needs: changes
+        if: ${{ github.ref == 'refs/heads/45-deploy-to-fly' && needs.changes.outputs.frontend == 'true' }}
         runs-on: ubuntu-latest
         defaults:
             run:
