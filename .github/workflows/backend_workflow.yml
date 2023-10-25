@@ -1,0 +1,23 @@
+name: code quality checks
+run-name: quality checks triggered by @${{ github.actor }}
+
+on: 
+  push:
+    paths: 
+      - "backend/**"
+   
+jobs:
+    filter_changes:
+      runs-on: ubuntu-latest
+      outputs:
+        output1: ${{ steps.filter.outputs.workflows }}
+      steps:
+        - uses: actions/checkout@v3
+        - uses: dorny/paths-filter@v2
+          id: changes
+          with:
+            filters: |
+              frontend:
+              - 'frontend/**'
+  
+    
