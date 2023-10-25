@@ -322,8 +322,6 @@ def get_quiz():
     quiz = generate_quiz_from_context()
     return quiz
 
-    # return response.response_txt
-
 
 def generate_quiz_from_context():
     from llama_index.output_parsers import LangchainOutputParser
