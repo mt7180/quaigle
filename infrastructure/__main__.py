@@ -4,7 +4,6 @@ import pulumi
 from pulumi_aws import ec2, iam
 
 import json
-import os
 
 # EC2 Instance Configuration
 ec2_instance_name = f"{pulumi.get_project()}_{pulumi.get_stack()}"
@@ -120,13 +119,7 @@ echo \
 sudo apt-get update
 """
 
-run_docker_image = f"""
-    export GIT_TOKEN=token
-    docker login --username {os.getenv("GIT_USER")} --password GIT_TOKEN ghcr.io
-    docker run ghcr.io/{os.getenv("APP_NAME")}:latest
-    """
-
-user_data = install_docker + run_docker_image
+user_data = install_docker
 
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
@@ -146,7 +139,6 @@ ec2_instance = ec2.Instance(
 pulumi.export("ec2_instance_id", ec2_instance.id)
 pulumi.export("instance_public_ip", ec2_instance.public_ip)
 pulumi.export("instance_public_dns", ec2_instance.public_dns)
-pulumi.export("test_string_env_var", run_docker_image)
 
 
 # https://www.learnaws.org/2021/06/19/pulumi-python-ec2/

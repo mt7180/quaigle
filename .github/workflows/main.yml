@@ -109,7 +109,6 @@ jobs:
       runs-on: ubuntu-latest
       outputs:
         instance_public_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
-        test_string: ${{ steps.pulumi.outputs.test_string_env_var }}
       defaults:
         run:
           working-directory: ./infrastructure
