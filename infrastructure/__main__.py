@@ -126,7 +126,6 @@ run_docker_image = f"""
     docker login --username {os.getenv("GIT_NAME")} --password GIT_TOKEN ghcr.io
     docker run ghcr.io/{os.getenv("GIT_NAME")}/{os.getenv("APP_NAME")}:latest
     """
-# print(run_docker_image)
 
 user_data = install_docker + run_docker_image
 
