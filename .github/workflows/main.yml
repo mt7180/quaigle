@@ -1,11 +1,35 @@
 name: CI/CD
 run-name: CICD triggered by @${{ github.actor }}
 
-on: [push]
+on: 
+  push:
+    paths: 
+      - "frontend/**"
+      - "backend/**"
+      - "infrastructure/**"
    
-jobs: 
+jobs:
+    detect_changes:
+      runs-on: ubuntu-latest
+      outputs:
+        backend: ${{ steps.changes.outputs.backend }}
+        frontend: ${{ steps.changes.outputs.frontend }}
+        
+      steps:
+        - uses: actions/checkout@v3
+        - uses: dorny/paths-filter@v2
+          id: changes
+          with:
+            filters: |
+              frontend:
+                - 'frontend/**'
+              backend:
+                - 'backend/**'
+              
     lint_frontend:
         name: lint frontend
+        needs: detect_changes
+        if: ${{ needs.detect_changes.outputs.frontend == true }}
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -35,6 +59,8 @@ jobs:
     
     lint_backend:
         name: lint backend
+        needs: detect_changes
+        if: ${{ needs.detect_changes.outputs.backend == true }}
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -63,7 +89,9 @@ jobs:
               uses: chartboost/ruff-action@v1
 
     deploy_frontend:
-        if: ${{ github.ref == 'refs/heads/45-deploy-to-fly' }}
+        name: deploy frontend
+        needs: detect_changes
+        if: ${{ github.ref == 'refs/heads/45-deploy-to-fly' && needs.detect_changes.outputs.frontend == true }}
         runs-on: ubuntu-latest
         defaults:
             run:
