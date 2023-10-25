@@ -30,15 +30,15 @@ security_group_http = ec2.SecurityGroup(
             "cidr_blocks": ["0.0.0.0/0"],
         },
     ],
-    # not neccessary for SSH:
-    # egress=[
-    #     {
-    #         'protocol': 'tcp',
-    #         'from_port': 443,  # https
-    #         'to_port': 443,
-    #         'cidr_blocks': ['0.0.0.0/0'],
-    #     },
-    # ]
+    # neccessary for docker installation:
+    egress=[
+        {
+            "protocol": "tcp",
+            "from_port": 443,  # https
+            "to_port": 443,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+    ],
 )
 
 ubuntu_ami = pulumi.Output.from_input(ec2_image_id)
