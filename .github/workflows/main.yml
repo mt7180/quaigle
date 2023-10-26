@@ -1,4 +1,4 @@
-name: CICD
+name: CI/CD
 run-name: CI/CD triggered by @${{ github.actor }}
 
 on: 
@@ -29,7 +29,6 @@ jobs:
               infrastructure:
                 - 'infrastructure/**'
             
-    
   lint_frontend:
       name: lint frontend
       needs: detect_changes
@@ -185,3 +184,27 @@ jobs:
       #       docker image rmi APP_NAME:latest
       #       docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest &&  # or docker pull
       #     '
+      
+  deploy_frontend:
+    name: deploy frontend
+    needs: detect_changes
+    if: ${{ github.ref == 'refs/heads/main' && needs.detect_changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: ./frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Echo job and branchname
+        run: echo "Running ${{ github.job}} on ${{ github.ref }}"
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy on fly
+        run: flyctl deploy --remote-only
+        env:
+            FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+

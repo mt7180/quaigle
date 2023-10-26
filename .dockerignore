@@ -1,4 +1,11 @@
 venv
+backend/b_venv
+__pycache__
+dist
+docs
+env
+logs
+Dockerfile
 .env
 tests
 .DS_Store

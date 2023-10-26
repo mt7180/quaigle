@@ -51,7 +51,7 @@ class AIDataBase(SQLDatabase):
         return self.get_table_info()
 
     def run_query(self, working_dict):
-        logging.debug("Query: ", working_dict["query"])
+        logging.debug(f"Query: {working_dict['query']}")
         return self.run(working_dict["query"])
 
     def ask_a_question(self, question: str, token_callback: CustomTokenCounter) -> str:

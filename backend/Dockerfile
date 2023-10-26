@@ -12,4 +12,7 @@ EXPOSE 8000:8000
 
 COPY . /app_backend/code
 
-CMD ["uvicorn", "code.fastapi_app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# for internal communication of front- and backend, which are both deployed on
+# flyio in seperate containers, ipv6 needs to be bind to the host aswell, this
+# is reached by exchanging host from "0.0.0.0" to "::"
+CMD ["uvicorn", "code.fastapi_app:app", "--host", "::", "--port", "8000", "--reload"]
