@@ -7,7 +7,7 @@ on:
       - 'frontend/**'
       - 'backend/**'
       - 'infrastructure/**'
-   
+#  ToDo: force deploy jobs to be executed after linting  
 jobs:
   detect_changes:
       runs-on: ubuntu-latest
@@ -137,8 +137,10 @@ jobs:
     name: deploy backend
     needs: detect_changes
     if: |
-      ${{ (needs.detect_changes.outputs.backend == 'true' && 
-      github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' )}} 
+      ${{ (
+        github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' &&
+        needs.detect_changes.outputs.backend == 'true'        
+      )}} 
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -184,7 +186,7 @@ jobs:
       #       docker image rmi APP_NAME:latest
       #       docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest &&  # or docker pull
       #     '
-      
+
   deploy_frontend:
     name: deploy frontend
     needs: detect_changes
