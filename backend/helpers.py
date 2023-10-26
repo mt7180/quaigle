@@ -5,11 +5,11 @@ import os
 
 def get_secret_value_from_client(secret, client):
     try:
-        get_secret_value_response = client.get_secret_value(SecretId=secret)
+        secret_string = client.get_secret_value(SecretId=secret).get("SecretString")
     except ClientError as e:
         raise e
-    # Decrypt secrets using the associated KMS key.
-    return get_secret_value_response["SecretString"]
+
+    return secret_string.split("\\")[-2][1:]
 
 
 def load_aws_secrets():

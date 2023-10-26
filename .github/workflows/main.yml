@@ -152,7 +152,6 @@ jobs:
           docker build . -t ghcr.io/${{ github.repository }}_backend_container:latest
           docker push ghcr.io/${{ github.repository }}_backend_container:latest
         
-      #    docker build ..... --build-arg OPENAI_API_KEY=${{ secrets.openaikey }} .
       # - name: Install Pulumi CLI
       #   uses: pulumi/action-install-pulumi-cli@v1.1.0
 
@@ -180,7 +179,7 @@ jobs:
       #     ssh -o StrictHostKeyChecking=no -i key.pem ${{env.USER_NAME}}@${{env.HOSTNAME}} '
       #       cd /home/USER_NAME/APP_NAME &&
       #       sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
-      #       # docker image rmi APP_NAME:latest
+      #       # sudo docker image rm ghcr.io/mt7180 ...:latest --force
       #       sudo docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest  # or docker pull
       #     '
 

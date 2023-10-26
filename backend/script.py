@@ -158,7 +158,7 @@ class CustomLlamaIndexChatEngineWrapper:
         self.documents = []
         storage_dir = CustomLlamaIndexChatEngineWrapper.cfd / "storage"
         storage_dir.mkdir(parents=True, exist_ok=True)
-        logging.info(f"storage dir exists: {os.path.exists(storage_dir)}")
+        # logging.info(f"storage dir exists: {os.path.exists(storage_dir)}")
         if any(
             pathlib.Path(CustomLlamaIndexChatEngineWrapper.cfd / "storage").iterdir()
         ):
@@ -169,7 +169,7 @@ class CustomLlamaIndexChatEngineWrapper:
                 storage_context=self.storage_context
             )
         else:
-            logging.info("creating new vec index")
+            logging.debug("creating new vec index")
             self.vector_index = self.create_vector_index()
         self.chat_engine = self.create_chat_engine()
 
@@ -297,8 +297,8 @@ if __name__ == "__main__":
     load_dotenv()
 
     # API_KEY = os.getenv('OPENAI_API_KEY')
-    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-    logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
     # openai_log = "debug"
 
     chat_engine, callback_manager, token_counter = set_up_text_chatbot()

@@ -12,8 +12,8 @@ from langchain.callbacks import get_openai_callback
 
 from operator import itemgetter
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
 # openai_log = "debug"
 
 

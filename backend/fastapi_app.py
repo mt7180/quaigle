@@ -53,7 +53,7 @@ else:
 
 
 logging.basicConfig(stream=sys.stdout, level=logging_level)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
 
 app = FastAPI()
 cfd = Path(__file__).parent
@@ -275,7 +275,7 @@ async def qa_text(question: QuestionModel):
 async def clear_storage():
     if app.chat_engine:
         app.chat_engine.clear_data_storage()
-        logging.debug("chat engine cleared...")
+        logging.info("chat engine cleared...")
     if (cfd / "data").exists():
         for file in Path(cfd / "data").iterdir():
             os.remove(file)
