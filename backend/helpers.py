@@ -1,26 +1,27 @@
+import json
 from boto3 import Session as BotoSession
 from botocore.exceptions import ClientError
 import os
 
 
-def get_secret_value_from_client(secret, client):
+def get_secret_dict_from_id(secret_id, client):
     try:
-        secret_string = client.get_secret_value(SecretId=secret).get("SecretString")
+        secret_string = client.get_secret_value(SecretId=secret_id).get("SecretString")
     except ClientError as e:
         raise e
-
-    return secret_string.split("\\")[-2][1:]
+    return json.loads(secret_string)
 
 
 def load_aws_secrets():
-    secrets = ("quaigle", "sentry")
+    secret_ids = ("quaigle", "sentry")
     region_name = "eu-central-1"
 
     # Create a Secrets Manager client
     session = BotoSession()
     client = session.client(service_name="secretsmanager", region_name=region_name)
 
-    # tuple unpacking into env vars
-    os.environ["OPENAI_API_KEY"], os.environ["SENTRY_SDK"] = tuple(
-        [get_secret_value_from_client(secret, client) for secret in secrets]
-    )
+    # load all secrets into the environment
+    for secret_id in secret_ids:
+        secret_dict = get_secret_dict_from_id(secret_id, client)
+        for secret_key, secret_value in secret_dict.items():
+            os.environ[secret_key] = secret_value
