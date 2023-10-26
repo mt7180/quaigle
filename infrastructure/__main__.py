@@ -1,9 +1,15 @@
 """A code as infrastructure pulumi program to set-up an ec2 instance"""
 
 import pulumi
-from pulumi_aws import ec2, iam
+from pulumi_aws import ec2, iam, ssm
 
 import json
+
+# get secret openai api key
+config = pulumi.Config()
+openai_key = ssm.Parameter(
+    "openai_key", type="SecureString", value=config.require_secret("openai_key")
+)
 
 # EC2 Instance Configuration
 ec2_instance_name = f"{pulumi.get_project()}_{pulumi.get_stack()}"
@@ -91,12 +97,52 @@ ec2_iam_role = iam.Role(
 #     ),
 # )
 
-# Attach the policy to the EC2 role
+# Create a policy for CloudWatch Logs access
+# https://docs.aws.amazon.com/mediaconnect/latest/ug/iam-policy-examples-asm-secrets.html
+ec2_sec_man_policy = iam.Policy(
+    "ec2SecManPolicy",
+    description="A policy to allow EC2 instances read access to specific resources \
+     (secrets) that you create in AWS Secrets Manager.",
+    policy=json.dumps(
+        {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": [
+                        "secretsmanager:GetResourcePolicy",
+                        "secretsmanager:GetSecretValue",
+                        "secretsmanager:DescribeSecret",
+                        "secretsmanager:ListSecretVersionIds",
+                    ],
+                    "Resource": [
+                        "arn:aws:secretsmanager:eu-central-1:039166537875:secret:quaigle-jW3M0i",
+                        "arn:aws:secretsmanager:eu-central-1:039166537875:secret:sentry-9Q4Cqm",
+                    ],
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": "secretsmanager:ListSecrets",
+                    "Resource": "*",
+                },
+            ],
+        }
+    ),
+)
+
+# Attach the logs policy to the EC2 role
 # ec2_logs_policy_attachment = iam.RolePolicyAttachment(
 #     "ec2LogsPolicyAttachment",
 #     policy_arn=ec2_logs_policy.arn,
 #     role=ec2_role.name,
 # )
+
+# Attach the sec manager policy to the EC2 role
+ec2_sec_man_policy_attachment = iam.RolePolicyAttachment(
+    "ec2SecManPolicyAttachment",
+    policy_arn=ec2_sec_man_policy.arn,
+    role=ec2_iam_role.name,
+)
 
 # Create an instance profile and associate the role with it
 ec2_iam_instance_profile = iam.InstanceProfile(
@@ -105,6 +151,7 @@ ec2_iam_instance_profile = iam.InstanceProfile(
 
 # Create user_data string
 docker_url = "https://download.docker.com/linux/ubuntu"
+
 install_docker = f"""sudo apt-get update
 sudo apt-get install ca-certificates curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
@@ -130,6 +177,9 @@ ec2_instance = ec2.Instance(
     # user_data=user_data,
     key_name="key_eu_central_1",
     # root_block_device=root_block_device,
+    metadata_options=ec2.InstanceMetadataOptionsArgs(
+        http_put_response_hop_limit=3,
+    ),
     tags={
         "Name": ec2_instance_name,
     },

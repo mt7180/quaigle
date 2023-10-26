@@ -29,13 +29,15 @@ from .script_database import (
     set_up_database_chatbot,
 )
 
+from .helpers import load_aws_secrets
+
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
-DEBUG_MODE = int(os.getenv("DEBUG", 1))
+DEBUG_MODE = int(os.getenv("DEBUG", 0))
 print("debug status: ", DEBUG_MODE)
 
 if DEBUG_MODE:
@@ -44,6 +46,7 @@ if DEBUG_MODE:
     app_dir = "backend"
 else:
     logging_level = logging.INFO
+    load_aws_secrets()
     SENTRY_DSN = os.getenv("SENTRY_DSN")
     sentry_sdk.init(SENTRY_DSN)
     app_dir = "code"
