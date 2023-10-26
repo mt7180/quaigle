@@ -1,15 +1,15 @@
 """A code as infrastructure pulumi program to set-up an ec2 instance"""
 
 import pulumi
-from pulumi_aws import ec2, iam, ssm
+from pulumi_aws import ec2, iam
 
 import json
 
 # get secret openai api key
-config = pulumi.Config()
-openai_key = ssm.Parameter(
-    "openai_key", type="SecureString", value=config.require_secret("openai_key")
-)
+# config = pulumi.Config()
+# openai_key = ssm.Parameter(
+#     "openai_key", type="SecureString", value=config.require_secret("openai_key")
+# )
 
 # EC2 Instance Configuration
 ec2_instance_name = f"{pulumi.get_project()}_{pulumi.get_stack()}"
