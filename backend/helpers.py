@@ -6,9 +6,7 @@ import os
 
 def get_secret_dict_from_id(secret_id, client):
     try:
-        secret_string = json.loads(client.get_secret_value(SecretId=secret_id)).get(
-            "SecretString"
-        )
+        secret_string = client.get_secret_value(SecretId=secret_id).get("SecretString")
     except ClientError as e:
         raise e
     return json.loads(secret_string)
@@ -26,4 +24,10 @@ def load_aws_secrets():
     for secret_id in secret_ids:
         secret_dict = get_secret_dict_from_id(secret_id, client)
         for secret_key, secret_value in secret_dict.items():
+            print(
+                f"""
+                secret_key={secret_key}, 
+                secret_val={secret_value[0]}***{secret_value[-1]}
+                """
+            )
             os.environ[secret_key] = secret_value
