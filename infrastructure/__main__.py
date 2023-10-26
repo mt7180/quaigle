@@ -31,12 +31,6 @@ security_group_http = ec2.SecurityGroup(
         },
         {
             "protocol": "tcp",
-            "from_port": 80,
-            "to_port": 80,
-            "cidr_blocks": ["0.0.0.0/0"],
-        },
-        {
-            "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
             "cidr_blocks": ["0.0.0.0/0"],
@@ -48,6 +42,12 @@ security_group_http = ec2.SecurityGroup(
             "protocol": "tcp",
             "from_port": 443,  # https
             "to_port": 443,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+        {
+            "protocol": "tcp",
+            "from_port": 80,
+            "to_port": 80,
             "cidr_blocks": ["0.0.0.0/0"],
         },
     ],
