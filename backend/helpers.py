@@ -9,7 +9,6 @@ def get_secret_value_from_client(secret, client):
     except ClientError as e:
         raise e
     # Decrypt secrets using the associated KMS key.
-    print(f"test: {get_secret_value_response['SecretString']}")
     return get_secret_value_response["SecretString"]
 
 

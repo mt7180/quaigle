@@ -7,6 +7,7 @@ on:
       - 'frontend/**'
       - 'backend/**'
       - 'infrastructure/**'
+
 #  ToDo: force deploy jobs to be executed after linting  
 jobs:
   detect_changes:
@@ -136,11 +137,7 @@ jobs:
   deploy_backend:
     name: deploy backend
     needs: detect_changes
-    if: |
-      ${{ (
-        github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' &&
-        needs.detect_changes.outputs.backend == 'true'        
-      )}} 
+    if: ${{ ( needs.detect_changes.outputs.backend == 'true' )}} 
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -179,12 +176,12 @@ jobs:
       #   # 
 
       #   run: |
-      #     echo "${{env.PRIVATE_KEY}}" > key.pem && chmod 600 key.pem
+      #     echo "${{env.PRIVATE_KEY}}" > key.pem && chmod 600 key.pem   # how to access pem string?
       #     ssh -o StrictHostKeyChecking=no -i key.pem ${{env.USER_NAME}}@${{env.HOSTNAME}} '
       #       cd /home/USER_NAME/APP_NAME &&
-      #       docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
-      #       docker image rmi APP_NAME:latest
-      #       docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest &&  # or docker pull
+      #       sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
+      #       # docker image rmi APP_NAME:latest
+      #       sudo docker run ghrc.io/${{ github.actor }}/${{ github.repository }}:latest  # or docker pull
       #     '
 
   deploy_frontend:

@@ -159,9 +159,10 @@ ec2_iam_instance_profile = iam.InstanceProfile(
 docker_url = "https://download.docker.com/linux/ubuntu"
 
 install_docker = f"""sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
+sudo apt-get install ca-certificates curl gnupg  # asks Y/n
 sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o \
+    /etc/apt/keyrings/docker.gpg # overwrite force
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 
 echo \
@@ -170,6 +171,10 @@ echo \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
+
+sudo apt-get install docker-ce docker-ce-cli containerd.io \
+    docker-buildx-plugin docker-compose-plugin # force
+
 """
 
 user_data = install_docker
