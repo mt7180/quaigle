@@ -96,7 +96,7 @@ jobs:
       name: setup backend infrastructure
       needs: detect_changes
       if: |
-          github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+          github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
           needs.detect_changes.outputs.infrastructure == 'true'
       runs-on: ubuntu-latest
       outputs:
@@ -136,8 +136,8 @@ jobs:
     name: deploy backend
     needs: detect_changes
     if: |
-      github.ref == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
-      needs.detect_changes.outputs.backend == 'true'
+        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+        needs.detect_changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -155,6 +155,7 @@ jobs:
       # - name: Install Pulumi CLI
       #   uses: pulumi/action-install-pulumi-cli@v1.1.0
 
+      # https://medium.com/@ibraheemabukaff/github-actions-exporting-multi-line-one-line-value-environment-variable-5bb86d01e866
       # - run: |
       #     pulumi login --local
       #     pulumi stack init dev

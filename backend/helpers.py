@@ -1,6 +1,6 @@
-import json
 from boto3 import Session as BotoSession
 from botocore.exceptions import ClientError
+import json
 import os
 
 
