@@ -14,7 +14,8 @@ from dotenv import load_dotenv
 from pathlib import Path
 import errno
 import certifi
-import sentry_sdk
+
+# import sentry_sdk
 
 from .script import (
     AITextDocument,
@@ -49,7 +50,7 @@ else:
     load_aws_secrets()
     SENTRY_DSN = os.getenv("SENTRY_DSN")
     print(f"secret_val S={SENTRY_DSN[0]}***{SENTRY_DSN[-1]} - {len(SENTRY_DSN)}")
-    sentry_sdk.init(SENTRY_DSN)
+    # sentry_sdk.init(SENTRY_DSN)
     app_dir = "code"
 
 
