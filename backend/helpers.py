@@ -6,7 +6,9 @@ import os
 
 def get_secret_dict_from_id(secret_id, client):
     try:
-        secret_string = client.get_secret_value(SecretId=secret_id).get("SecretString")
+        secret_string = json.loads(client.get_secret_value(SecretId=secret_id)).get(
+            "SecretString"
+        )
     except ClientError as e:
         raise e
     return json.loads(secret_string)
