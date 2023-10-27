@@ -100,8 +100,8 @@ jobs:
           needs.detect_changes.outputs.infrastructure == 'true'
       runs-on: ubuntu-latest
       outputs:
-        instance_public_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
-        instance_ip_changed: ${{ steps.pulumi.outputs.instance_ip_changed }}
+        ec2_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
+        old_ip: ${{ steps.pulumi.outputs.old_instance_ip }}
       defaults:
         run:
           working-directory: ./infrastructure
@@ -143,7 +143,7 @@ jobs:
     name: modify frontend Dockerfile
     needs: setup_backend_infrastructure
     if: |
-        needs.setup_backend_infrastructure.outputs.instance_ip_changed == 'true' &&
+        needs.setup_backend_infrastructure.outputs.old_ip != needs.setup_backend_infrastructure.outputs.ec2_ip &&
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi'
     runs-on: ubuntu-latest
     steps:
@@ -153,11 +153,10 @@ jobs:
             fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
         - name: give new backend-url to frontend
           id: transfer_backend_url
-          if: ${{ needs.setup_backend_infrastructure.outputs.instance_ip_changed == 'true'}}
           working-directory: ./frontend
           run: |
             echo "new content"
-            echo ${{ needs.setup_backend_infrastructure.outputs.instance_public_ip }}
+            echo ${{ needs.setup_backend_infrastructure.outputs.ec2_ip }}
 
         # ToDO: uncomment as next step to set backend url in frontend Dockerfile
         #   python rewrite_frontend_dockerfile(${{ steps.pulumi.outputs.instance_public_ip }})
@@ -210,7 +209,7 @@ jobs:
           name: backend_public_ip
           path: ./infrastructure/backend_public_ip.txt
       # test if ip is there
-      - run: ./infrastructure/cat backend_public_ip.txt         
+      - run: cat ./infrastructure/backend_public_ip.txt         
       
       # - name: ssh into and pull image to aws instance
       #   env:

@@ -27,9 +27,9 @@ old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
 # if stack_ref and old_instance_ip_Output_obj:
 old_instance_ip = pulumi.Output.format("{0}", old_instance_ip_Output_obj)
 
-# pulumi.Output.all(old_instance_ip_Output_obj).apply(
-#     lambda values: print(f"IP: {values[0]}")
-# )
+pulumi.Output.all(old_instance_ip_Output_obj).apply(
+    lambda values: print(f"IP: {values[0]}")
+)
 
 
 # Create a security group for the instances
@@ -208,9 +208,7 @@ ec2_instance = ec2.Instance(
     iam_instance_profile=ec2_iam_instance_profile.name,
 )
 
-pulumi.export(
-    "instance_ip_changed", str(old_instance_ip != ec2_instance.public_ip).lower()
-)
+pulumi.export("old_instance_ip", old_instance_ip)
 pulumi.export("ec2_instance_id", ec2_instance.id)
 pulumi.export("instance_public_ip", ec2_instance.public_ip)
 pulumi.export("instance_public_dns", ec2_instance.public_dns)
