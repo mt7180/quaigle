@@ -24,10 +24,4 @@ def load_aws_secrets():
     for secret_id in secret_ids:
         secret_dict = get_secret_dict_from_id(secret_id, client)
         for secret_key, secret_value in secret_dict.items():
-            print(
-                f"""
-                secret_key={secret_key}, 
-                secret_val={secret_value[0]}***{secret_value[-1]}
-                """
-            )
             os.environ[secret_key] = secret_value
