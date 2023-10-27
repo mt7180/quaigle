@@ -197,9 +197,9 @@ jobs:
     name: deploy backend
     needs: [detect_changes, build_backend_image, setup_backend_infrastructure]
     if: |
+        always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
-        ( needs.detect_changes.outputs.backend == 'true' ||
-        needs.detect_changes.outputs.infrastructure == 'true' )
+        (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
