@@ -76,7 +76,6 @@ ubuntu_ami = pulumi.Output.from_input(ec2_image_id)
 #     delete_on_termination=True,
 # )
 
-
 # Create IAM role for the EC2 instance (standard - yes, 2017!)
 ec2_iam_role = iam.Role(
     "ec2Role",
