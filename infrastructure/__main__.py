@@ -23,8 +23,12 @@ ec2_instance_type = "t2.micro"
 stack_ref = pulumi.StackReference("mt7180/quaigle_backend/dev")
 # f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
 
-old_instance_ip = stack_ref.get_output("instance_public_ip").apply(lambda ip: f"{ip}")
-print("old_instance_ip: ", old_instance_ip)
+old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
+old_instance_ip = old_instance_ip_Output_obj.apply(lambda value: f"{value}")
+pulumi.Output.all(old_instance_ip_Output_obj).apply(
+    lambda values: print(f"IP: {values[0]}")
+)
+print(f"{old_instance_ip=}")
 
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
