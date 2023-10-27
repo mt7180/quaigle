@@ -27,9 +27,9 @@ old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
 # if stack_ref and old_instance_ip_Output_obj:
 old_instance_ip = pulumi.Output.format("{0}", old_instance_ip_Output_obj)
 
-pulumi.Output.all(old_instance_ip_Output_obj).apply(
-    lambda values: print(f"IP: {values[0]}")
-)
+# pulumi.Output.all(old_instance_ip_Output_obj).apply(
+#     lambda values: print(f"IP: {values[0]}")
+# )
 
 
 # Create a security group for the instances
