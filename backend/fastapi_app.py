@@ -15,7 +15,7 @@ from pathlib import Path
 import errno
 import certifi
 
-# import sentry_sdk
+import sentry_sdk
 
 from .script import (
     AITextDocument,
@@ -37,9 +37,8 @@ os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
 
-load_dotenv()
-DEBUG_MODE = int(os.getenv("DEBUG", 0))
-print("debug status: ", DEBUG_MODE)
+load_dotenv()  # can be set to override=True, if values changed
+DEBUG_MODE = int(os.getenv("DEBUG_MY_APP", 0))
 
 if DEBUG_MODE:
     openai_log = "debug"
@@ -49,13 +48,16 @@ else:
     logging_level = logging.INFO
     load_aws_secrets()
     SENTRY_DSN = os.getenv("SENTRY_DSN")
-    print(f"secret_val S={SENTRY_DSN[0]}***{SENTRY_DSN[-1]} - {len(SENTRY_DSN)}")
-    # sentry_sdk.init(SENTRY_DSN)
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        # Enable performance monitoring
+        enable_tracing=True,
+    )
     app_dir = "code"
-
 
 logging.basicConfig(stream=sys.stdout, level=logging_level)
 logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.info(f"debug on: {bool(DEBUG_MODE)}")
 
 app = FastAPI()
 cfd = Path(__file__).parent
