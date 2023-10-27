@@ -207,9 +207,10 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: backend_public_ip
-          path: ./infrastructure/backend_public_ip.txt
+          path: ./infrastructure
       # test if ip is there
-      - run: cat ./infrastructure/backend_public_ip.txt         
+      - run: cat ./infrastructure/backend_public_ip.txt
+      - run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_STATE      
       
       # - name: ssh into and pull image to aws instance
       #   env:
