@@ -24,15 +24,13 @@ stack_ref = pulumi.StackReference("mt7180/quaigle_backend/dev")
 # f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
 
 old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
-if stack_ref and old_instance_ip_Output_obj:
-    old_instance_ip = str(pulumi.Output.format("{0}", old_instance_ip_Output_obj))
+# if stack_ref and old_instance_ip_Output_obj:
+old_instance_ip = pulumi.Output.format("{0}", old_instance_ip_Output_obj)
 
-    pulumi.Output.all(old_instance_ip_Output_obj).apply(
-        lambda values: print(f"IP: {values[0]}")
-    )
-    print(f"{old_instance_ip=}")
-else:
-    old_instance_ip = ""
+pulumi.Output.all(old_instance_ip_Output_obj).apply(
+    lambda values: print(f"IP: {values[0]}")
+)
+
 
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
@@ -198,7 +196,7 @@ ec2_instance = ec2.Instance(
     instance_type=ec2_instance_type,
     ami=ubuntu_ami,
     vpc_security_group_ids=[security_group_http.id],
-    user_data=install_docker,
+    # user_data=install_docker,  # works correct, but uncommented to save time
     key_name="key_eu_central_1",
     # root_block_device=root_block_device,
     metadata_options=ec2.InstanceMetadataOptionsArgs(
