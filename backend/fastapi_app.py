@@ -47,7 +47,7 @@ if DEBUG_MODE:
 else:
     logging_level = logging.INFO
     load_aws_secrets()
-    SENTRY_DSN = os.getenv("SENTRY_DSN")
+    SENTRY_DSN = os.getenv("SENTRY_DSN_BACKEND")
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         # Enable performance monitoring

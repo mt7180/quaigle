@@ -13,7 +13,7 @@ def get_secret_dict_from_id(secret_id, client):
 
 
 def load_aws_secrets():
-    secret_ids = ("quaigle", "sentry")
+    secret_ids = ("quaigle", "sentry_backend")
     region_name = "eu-central-1"
 
     # Create a Secrets Manager client

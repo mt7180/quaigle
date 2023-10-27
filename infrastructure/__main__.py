@@ -123,7 +123,7 @@ ec2_sec_man_policy = iam.Policy(
                     ],
                     "Resource": [
                         "arn:aws:secretsmanager:eu-central-1:039166537875:secret:quaigle-jW3M0i",
-                        "arn:aws:secretsmanager:eu-central-1:039166537875:secret:sentry-9Q4Cqm",
+                        "arn:aws:secretsmanager:eu-central-1:039166537875:secret:sentry_backend-Yt3Hi4",
                     ],
                 },
                 {
