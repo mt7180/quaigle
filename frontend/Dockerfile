@@ -4,6 +4,7 @@ WORKDIR /app_frontend
 
 COPY requirements.txt ./requirements.txt
 
+ENV BACKEND_URL=http://quaigleapi.internal:8000
 
 RUN pip3 install -r requirements.txt
 

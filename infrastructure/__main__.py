@@ -2,7 +2,7 @@
 
 import pulumi
 from pulumi_aws import ec2, iam
-
+import re
 import json
 
 # get secret openai api key
@@ -17,6 +17,12 @@ ec2_image_id = "ami-06dd92ecc74fdfb36"
 ec2_instance_type = "t2.micro"
 # ec2_storage_size = 50
 
+# get the ip of the instance before updating it
+# careful: doesn't work if stack has "_" in name
+stack_ref = pulumi.StackReference(
+    f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
+)
+old_instance_ip = stack_ref.get_output("instance_public_ip")
 
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
@@ -193,6 +199,9 @@ ec2_instance = ec2.Instance(
     iam_instance_profile=ec2_iam_instance_profile.name,
 )
 
+pulumi.export(
+    "instance_ip_changed", str(old_instance_ip == ec2_instance.public_ip).lower()
+)
 pulumi.export("ec2_instance_id", ec2_instance.id)
 pulumi.export("instance_public_ip", ec2_instance.public_ip)
 pulumi.export("instance_public_dns", ec2_instance.public_dns)

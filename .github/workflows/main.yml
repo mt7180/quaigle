@@ -101,6 +101,7 @@ jobs:
       runs-on: ubuntu-latest
       outputs:
         instance_public_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
+        instance_ip_changed: ${{ steps.pulumi.outputs.instance_ip_changed }}
       defaults:
         run:
           working-directory: ./infrastructure
@@ -125,15 +126,58 @@ jobs:
           uses: pulumi/actions@v3
           with:
             command: up
-            stack-name: mt7180/quaigle_backend/dev # When using an individual account, only use stack-name.
+            stack-name: mt7180/quaigle_backend/dev
             work-dir: ./infrastructure
           env:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}
             GIT_USER : ${{ github.actor }}
 
-  deploy_backend:
-    name: deploy backend
+        - run: echo ${{ steps.pulumi.outputs.instance_public_ip }} > backend_public_ip.txt
+        - name: Upload ec2 public ip to artifact
+          uses: actions/upload-artifact@v3
+          with:
+            name: backend_public_ip
+            path: backend_public_ip.txt
+
+  Provide_frontend_with_new_backend_url:
+    name: modify frontend Dockerfile
+    needs: setup_backend_infrastructure
+    if: |
+        needs.setup_backend_infrastructure.outputs.instance_ip_changed == 'true' &&
+        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi'
+    runs-on: ubuntu-latest
+    steps:
+        - uses: actions/checkout@v2
+          with:
+            persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
+            fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
+        - name: give new backend-url to frontend
+          id: transfer_backend_url
+          if: ${{ needs.setup_backend_infrastructure.outputs.instance_ip_changed == 'true'}}
+          working-directory: ./frontend
+          run: |
+            echo "new content"
+            echo ${{ needs.setup_backend_infrastructure.outputs.instance_public_ip }}
+
+        # ToDO: uncomment as next step to set backend url in frontend Dockerfile
+        #   python rewrite_frontend_dockerfile(${{ steps.pulumi.outputs.instance_public_ip }})
+        # - name: commit Dockerfile
+        #   if: ${{ steps.transfer_backend_url == 'true'}}
+        #   working-directory: .frontend
+        #   run: |
+        #     git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        #     git config --local user.name "github-actions[bot]"
+        #     git add .Dockerfile
+        #     git commit -m "automatic update of backend url in frontend Dockerfile"
+        # - name: push changes
+        #   uses: ad-m/github-push-action@master
+        #   with:
+        #     github_token: ${{ secrets.GITHUB_TOKEN }}
+        #     branch: ${{ github.ref }}
+
+  build_backend_image:
+    name: build backend image and push to ghcr
     needs: detect_changes
     if: |
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
@@ -142,8 +186,6 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-    env:
-      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v3
       - name: Build and push image to GHCR
@@ -151,18 +193,24 @@ jobs:
           docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io
           docker build . -t ghcr.io/${{ github.repository }}_backend_container:latest
           docker push ghcr.io/${{ github.repository }}_backend_container:latest
-        
-      # - name: Install Pulumi CLI
-      #   uses: pulumi/action-install-pulumi-cli@v1.1.0
 
-      # https://medium.com/@ibraheemabukaff/github-actions-exporting-multi-line-one-line-value-environment-variable-5bb86d01e866
-      # - run: |
-      #     pulumi login --local
-      #     pulumi stack init dev
-      #     pulumi stack select dev
-      #     echo "ec2_inst_id=$(pulumi stack output ec2_instance_id)" >> "$GITHUB_ENV"   #?????
-      #   working-directory: ./infrastructure
-              
+  deploy_backend_container:
+    name: deploy backend
+    needs: [detect_changes, build_backend_image]
+    if: |
+        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+        needs.detect_changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Download artifact
+        id: get_backend_ip
+        uses: actions/download-artifact@v2
+        with:
+          name: backend_public_ip
+          path: backend_public_ip.txt
+      # test if ip is there
+      - run: cat backend_public_ip.txt         
       
       # - name: ssh into and pull image to aws instance
       #   env:
@@ -180,8 +228,8 @@ jobs:
       #     ssh -o StrictHostKeyChecking=no -i key.pem ${{env.USER_NAME}}@${{env.HOSTNAME}} '
       #       cd /home/USER_NAME/APP_NAME &&
       #       sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
-      #       # sudo docker image rm ghcr.io/mt7180 ...:latest --force
-      #       sudo docker run -p 8000:8000 ghrc.io/${{ github.actor }}/${{ github.repository }}:latest  # or docker pull
+      #       sudo docker image rm ghrc.io/${{ github.repository }} --force
+      #       sudo docker run -p 8000:8000 ghrc.io/${{ github.repository }}:latest  # or docker pull ?
       #     '
 
   deploy_frontend:
