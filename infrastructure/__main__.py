@@ -159,12 +159,11 @@ ec2_iam_instance_profile = iam.InstanceProfile(
 docker_url = "https://download.docker.com/linux/ubuntu"
 
 install_docker = f"""sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg  # asks Y/n
+sudo apt-get install ca-certificates --yes curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o \
-    /etc/apt/keyrings/docker.gpg # overwrite force
+    /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
 echo \
   "deb [arch="$(dpkg --print-architecture)" \
   signed-by=/etc/apt/keyrings/docker.gpg] {docker_url} \
@@ -173,11 +172,8 @@ echo \
 sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io \
-    docker-buildx-plugin docker-compose-plugin # force
-
+    docker-buildx-plugin docker-compose-plugin --yes
 """
-
-user_data = install_docker
 
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
@@ -185,7 +181,7 @@ ec2_instance = ec2.Instance(
     instance_type=ec2_instance_type,
     ami=ubuntu_ami,
     vpc_security_group_ids=[security_group_http.id],
-    # user_data=user_data,
+    user_data=install_docker,
     key_name="key_eu_central_1",
     # root_block_device=root_block_device,
     metadata_options=ec2.InstanceMetadataOptionsArgs(
