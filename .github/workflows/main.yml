@@ -132,13 +132,12 @@ jobs:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}
             GIT_USER : ${{ github.actor }}
-
         - run: echo ${{ steps.pulumi.outputs.instance_public_ip }} > backend_public_ip.txt
         - name: Upload ec2 public ip to artifact
           uses: actions/upload-artifact@v3
           with:
             name: backend_public_ip
-            path: backend_public_ip.txt
+            path: ./infrastructure/backend_public_ip.txt
 
   Provide_frontend_with_new_backend_url:
     name: modify frontend Dockerfile
@@ -208,9 +207,9 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: backend_public_ip
-          path: backend_public_ip.txt
+          path: ./infrastructure/backend_public_ip.txt
       # test if ip is there
-      - run: cat backend_public_ip.txt         
+      - run: ./infrastructure/cat backend_public_ip.txt         
       
       # - name: ssh into and pull image to aws instance
       #   env:

@@ -2,7 +2,8 @@
 
 import pulumi
 from pulumi_aws import ec2, iam
-import re
+
+# import re
 import json
 
 # get secret openai api key
@@ -19,10 +20,11 @@ ec2_instance_type = "t2.micro"
 
 # get the ip of the instance before updating it
 # careful: doesn't work if stack has "_" in name
-stack_ref = pulumi.StackReference(
-    f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
-)
+stack_ref = pulumi.StackReference("mt7180/quaigle_backend/dev")
+# f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
+
 old_instance_ip = stack_ref.get_output("instance_public_ip")
+print(old_instance_ip)
 
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
@@ -164,7 +166,8 @@ ec2_iam_instance_profile = iam.InstanceProfile(
 # Create user_data string
 docker_url = "https://download.docker.com/linux/ubuntu"
 
-install_docker = f"""sudo apt-get update
+install_docker = f"""#!/bin/bash
+sudo apt-get update
 sudo apt-get install ca-certificates --yes curl gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL {docker_url}/gpg | sudo gpg --dearmor -o \
