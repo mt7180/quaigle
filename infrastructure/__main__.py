@@ -3,7 +3,7 @@
 import pulumi
 from pulumi_aws import ec2, iam
 
-# import re
+import re
 import json
 
 # get secret openai api key
@@ -21,7 +21,11 @@ ec2_instance_type = "t2.micro"
 # get the ip of the instance before updating it
 # careful: doesn't work if stack has "_" in name
 stack_ref = pulumi.StackReference("mt7180/quaigle_backend/dev")
-# f"{pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}"
+print(
+    f"""Test ec2 instance name: 
+    {pulumi.get_organization()}/{re.sub('_(?=[^_]*$)', '/', ec2_instance_name)}
+"""
+)
 
 old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
 # if stack_ref and old_instance_ip_Output_obj:
