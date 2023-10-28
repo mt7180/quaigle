@@ -33,7 +33,6 @@ pulumi.Output.all(old_instance_ip_Output_obj).apply(
     lambda values: print(f"IP: {values[0]}")
 )
 
-
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
     "web-secgrp",
