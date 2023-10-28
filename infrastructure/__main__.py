@@ -20,8 +20,9 @@ ec2_instance_type = "t2.micro"
 
 # get the ip of the instance before updating it
 # careful: doesn't work if stack has "_" in name
+# "mt7180/quaigle_backend/dev"
 stack_ref = pulumi.StackReference(
-    {pulumi.get_organization()} / {re.sub("_(?=[^_]*$)", "/", ec2_instance_name)}
+    f'{pulumi.get_organization()}/{re.sub("_(?=[^_]*$)", "/", ec2_instance_name)}'
 )
 
 old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")

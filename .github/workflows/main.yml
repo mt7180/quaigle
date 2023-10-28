@@ -198,7 +198,10 @@ jobs:
     if: |
         always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
-        (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true')
+        (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true') &&
+        (needs.setup_backend_infrastructure.result == 'success' || needs.setup_backend_infrastructure.result == 'skipped') &&
+        (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
+       
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
