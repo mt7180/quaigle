@@ -187,7 +187,7 @@ sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io \
     docker-buildx-plugin docker-compose-plugin --yes
-sudo docker run -p 8000:8000 ghrc.io/mt7180/quaigle_backend_container:latest
+sudo docker run -p 8000:8000 ghcr.io/mt7180/quaigle_backend_container:latest
 """
 
 # Create an EC2 instance
