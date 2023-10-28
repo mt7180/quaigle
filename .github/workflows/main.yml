@@ -212,25 +212,26 @@ jobs:
       - run: cat ./infrastructure/backend_public_ip.txt
       - run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_STATE      
       
-      # - name: ssh into and pull image to aws instance
-      #   env:
-      #       PRIVATE_KEY: ${{ secrets.AWS_PRIVATE_KEY  }}
-      #       HOSTNAME : ${{ env.ec2_inst_id  }}
-      #       USER_NAME : ${{ secrets.USER_NAME  }}   # ubuntu
-      #       APP_NAME :  ${{ github.repository }}
-      #   # https://blog.devops.dev/continuous-deployment-with-github-actions-dockerhub-and-aws-ec2-a-hands-on-tutorial-b01656a27963    
-      #   # https://farhan-tanvir.medium.com/ci-cd-from-github-to-aws-ec2-using-github-action-e18b621c0507
-      #   # https://github.com/jonashackt/pulumi-python-aws-ansible/blob/master/README.md#ssh-connection-to-the-pulumi-created-ec2-instance
-      #   # 
+      - name: ssh into and pull image to aws instance
+        env:
+            PRIVATE_KEY: ${{ secrets.EC2_KEY  }}
+            # PRIVATE_KEY_NAME: ${{ secrets.EC2_KEY_NAME}}
+            HOSTNAME : ${{ env.ec2_inst_id  }}
+            USER_NAME : ${{ secrets.EC2_USER  }}
+            AWS_REGION : ${{ secrets.AWS_REGION }}
+            APP_NAME :  ${{ github.repository }}
+        # https://blog.devops.dev/continuous-deployment-with-github-actions-dockerhub-and-aws-ec2-a-hands-on-tutorial-b01656a27963    
+        # https://farhan-tanvir.medium.com/ci-cd-from-github-to-aws-ec2-using-github-action-e18b621c0507
+        # https://github.com/jonashackt/pulumi-python-aws-ansible/blob/master/README.md#ssh-connection-to-the-pulumi-created-ec2-instance
+        # 
 
-      #   run: |
-      #     echo "${{env.PRIVATE_KEY}}" > key.pem && chmod 600 key.pem   # how to access pem string?
-      #     ssh -o StrictHostKeyChecking=no -i key.pem ${{env.USER_NAME}}@${{env.HOSTNAME}} '
-      #       cd /home/USER_NAME/APP_NAME &&
-      #       sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
-      #       sudo docker image rm ghrc.io/${{ github.repository }} --force
-      #       sudo docker run -p 8000:8000 ghrc.io/${{ github.repository }}:latest  # or docker pull ?
-      #     '
+        run: |
+          echo "${{ env.PRIVATE_KEY }}" > key && chmod 600 key
+          ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
+            sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io &&
+            sudo docker image rm ghcr.io/${{ github.repository }} --force
+            sudo docker run -p 8000:8000 ghrc.io/${{ github.repository }}_backend_container:latest
+          '
 
   deploy_frontend:
     name: deploy frontend
