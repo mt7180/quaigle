@@ -210,9 +210,9 @@ jobs:
           path: ./infrastructure
       # test if ip is there
       - run: cat ./infrastructure/backend_public_ip.txt
-      - run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_STATE
+      - run: echo "{ec2_inst_id}={$(cat ./infrastructure/backend_public_ip.txt)}" >> $GITHUB_ENV
       - run: echo "${{ env.ec2_inst_id}}"
-      - run: echo "$env.ec2_inst_id"
+      - run: echo "$ec2_inst_id"
       
       - name: ssh into and pull image to aws instance
         env:
