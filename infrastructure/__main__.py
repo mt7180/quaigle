@@ -28,7 +28,7 @@ pulumi.Output.all(old_instance_ip_Output_obj).apply(
 # Create a security group for the instances
 security_group_http = ec2.SecurityGroup(
     "web-secgrp",
-    description="Enable HTTP and SSH access",
+    description="Enable HTTP, ping and SSH access",
     ingress=[
         {
             "protocol": "tcp",
@@ -40,6 +40,12 @@ security_group_http = ec2.SecurityGroup(
             "protocol": "tcp",
             "from_port": 22,
             "to_port": 22,
+            "cidr_blocks": ["0.0.0.0/0"],
+        },
+        {
+            "protocol": "icmp",
+            "from_port": 8,  # ICMP type for Echo request (ping)
+            "to_port": 0,  # ICMP code for Echo reply
             "cidr_blocks": ["0.0.0.0/0"],
         },
     ],
