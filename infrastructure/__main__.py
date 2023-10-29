@@ -6,11 +6,6 @@ from pulumi_aws import ec2, iam
 import re
 import json
 
-# get secret openai api key
-# config = pulumi.Config()
-# openai_key = ssm.Parameter(
-#     "openai_key", type="SecureString", value=config.require_secret("openai_key")
-# )
 
 # EC2 Instance Configuration
 ec2_instance_name = f"{pulumi.get_project()}_{pulumi.get_stack()}"
@@ -18,14 +13,12 @@ ec2_image_id = "ami-06dd92ecc74fdfb36"
 ec2_instance_type = "t2.micro"
 # ec2_storage_size = 50
 
-# get the ip of the instance before updating it
+# get the old ip of the instance before updating to detect ip change
 # careful: doesn't work if stack has "_" in name (here: dev)
 stack_ref = pulumi.StackReference(
     f'{pulumi.get_organization()}/{re.sub("_(?=[^_]*$)", "/", ec2_instance_name)}'
 )
-
 old_instance_ip_Output_obj = stack_ref.get_output("instance_public_ip")
-# if stack_ref and old_instance_ip_Output_obj:
 old_instance_ip = pulumi.Output.format("{0}", old_instance_ip_Output_obj)
 
 pulumi.Output.all(old_instance_ip_Output_obj).apply(

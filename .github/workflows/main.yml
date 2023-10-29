@@ -140,7 +140,7 @@ jobs:
             path: ./infrastructure/backend_public_ip.txt
 
   Provide_frontend_with_new_backend_url:
-    name: modify frontend Dockerfile
+    name: Modify frontend Dockerfile
     needs: setup_backend_infrastructure
     if: |
         needs.setup_backend_infrastructure.outputs.old_ip != needs.setup_backend_infrastructure.outputs.ec2_ip &&
@@ -151,7 +151,7 @@ jobs:
           with:
             persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
             fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-        - name: give new backend-url to frontend
+        - name: Give new backend-url to frontend
           id: transfer_backend_url
           working-directory: ./frontend
           run: |
@@ -195,9 +195,11 @@ jobs:
   deploy_backend_container:
     name: deploy backend
     needs: [detect_changes, build_backend_image, setup_backend_infrastructure]
-    # avoid using always(), it can not be canceled
+    # always() can not be canceled, but the job needs to be run even if the preceeding jobs
+    # defined in needs: are skipped (== canceled()). On the other
+    # hand the job has to wait for the jobs defined in need: to have infrastructure and docker image prepared
     if: |
-        (success() || failure()) && 
+        always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
         (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true') &&
         (needs.setup_backend_infrastructure.result == 'success' || needs.setup_backend_infrastructure.result == 'skipped') &&
@@ -206,19 +208,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Download artifact
+      - name: Download ec2 IP from artifact
         id: get_backend_ip
         uses: actions/download-artifact@v2
         with:
           name: backend_public_ip
           path: ./infrastructure
-      # test if ip is there
-      - run: cat ./infrastructure/backend_public_ip.txt
-      - run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_ENV
-      - run: echo "${{ env.ec2_inst_id}}"
-      - run: echo "$ec2_inst_id"
-      
-      - name: ssh into and pull image to aws instance
+      - name: Export ec2 IP to env variable
+        run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_ENV
+      - name: Check if IP works and ec2 is up
+        id: ping
+        run: ping -c 1 ${{ env.ec2_inst_id  }}
+        
+      - name: SSH into ec2 and pull current docker image
+        if: ${{ steps.ping.outcome == 'success' }}
         env:
             PRIVATE_KEY: ${{ secrets.EC2_KEY  }}
             # PRIVATE_KEY_NAME: ${{ secrets.EC2_KEY_NAME}}
