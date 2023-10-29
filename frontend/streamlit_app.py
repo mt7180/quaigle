@@ -32,7 +32,6 @@ if not DEBUG_STATUS:
     SENTRY_DSN = os.getenv("SENTRY_DSN")
     sentry_sdk.init(SENTRY_DSN)
 
-
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
 cfd = pathlib.Path(__file__).parent
