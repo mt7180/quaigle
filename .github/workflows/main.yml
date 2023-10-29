@@ -195,8 +195,9 @@ jobs:
   deploy_backend_container:
     name: deploy backend
     needs: [detect_changes, build_backend_image, setup_backend_infrastructure]
+    # avoid using always(), it can not be canceled
     if: |
-        always() && 
+        (success() || failure()) && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
         (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true') &&
         (needs.setup_backend_infrastructure.result == 'success' || needs.setup_backend_infrastructure.result == 'skipped') &&
@@ -235,7 +236,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
             sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
             sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force
-            sudo docker run -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
+            sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
           '
 
   deploy_frontend:
