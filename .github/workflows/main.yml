@@ -216,12 +216,12 @@ jobs:
           path: ./infrastructure
       - name: Export ec2 IP to env variable
         run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_ENV
-      - name: Check if IP works and ec2 is up
-        id: ping
-        run: ping -c 1 -w 300 -i 30 ${{ env.ec2_inst_id  }}
+      # plain ping doesn't work with gh actions, is there a runner?
+      # - name: Check if IP works and ec2 is up
+      #   id: ping
+      #   run: ping -c 1 -w 300 -i 30 ${{ env.ec2_inst_id  }}
         
       - name: SSH into ec2 and pull current docker image
-        if: ${{ steps.ping.outcome == 'success' }}
         env:
             PRIVATE_KEY: ${{ secrets.EC2_KEY  }}
             # PRIVATE_KEY_NAME: ${{ secrets.EC2_KEY_NAME}}

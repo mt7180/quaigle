@@ -43,12 +43,13 @@ security_group_http = ec2.SecurityGroup(
             "to_port": 22,
             "cidr_blocks": ["0.0.0.0/0"],
         },
-        {
-            "protocol": "icmp",
-            "from_port": 8,  # ICMP type for Echo request (ping)
-            "to_port": 0,  # ICMP code for Echo reply
-            "cidr_blocks": ["0.0.0.0/0"],
-        },
+        # ping doesn't work in plain gh actions, is there any runner?
+        # {
+        #     "protocol": "icmp",
+        #     "from_port": 8,  # ICMP type for Echo request (ping)
+        #     "to_port": 0,  # ICMP code for Echo reply
+        #     "cidr_blocks": ["0.0.0.0/0"],
+        # },
     ],
     # neccessary for docker installation:
     egress=[
