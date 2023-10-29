@@ -218,7 +218,7 @@ jobs:
         run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_ENV
       - name: Check if IP works and ec2 is up
         id: ping
-        run: ping -c 1 ${{ env.ec2_inst_id  }}
+        run: ping -c 1 -w 300 -i 30 ${{ env.ec2_inst_id  }}
         
       - name: SSH into ec2 and pull current docker image
         if: ${{ steps.ping.outcome == 'success' }}
