@@ -13,6 +13,7 @@ ec2_image_id = "ami-06dd92ecc74fdfb36"
 ec2_instance_type = "t2.micro"
 # ec2_storage_size = 50
 
+
 # get the old ip of the instance before updating to detect ip change
 # careful: doesn't work if stack has "_" in name (here: dev)
 stack_ref = pulumi.StackReference(
