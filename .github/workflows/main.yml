@@ -128,13 +128,15 @@ jobs:
         - run: |
             echo "Current ip: ${{ steps.pulumi.outputs.instance_public_ip }}"
             echo "Old ip: ${{ steps.pulumi.outputs.old_instance_ip }}"
+            echo "Change: ${{ steps.pulumi.outputs.instance_public_ip != steps.pulumi.outputs.old_instance_ip }}"
   
   transfer_backend_ip:
       name: Transfer new backend-ip to frontend
       needs: create_backend_ec2
-      if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == true}}
+      # if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == true}}
       runs-on: ubuntu-latest
       steps:
+        - run: echo "${{ needs.create_backend_ec2.outputs.ec2_ip_changed }}"
         - name: Set up flyctl
           uses: superfly/flyctl-actions/setup-flyctl@master
 
