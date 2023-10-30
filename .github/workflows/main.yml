@@ -133,7 +133,7 @@ jobs:
   transfer_backend_ip:
       name: Transfer new backend-ip to frontend
       needs: create_backend_ec2
-      # if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == true}}
+      if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == 'true'}}
       runs-on: ubuntu-latest
       steps:
         - run: echo "${{ needs.create_backend_ec2.outputs.ec2_ip_changed }}"
@@ -141,7 +141,7 @@ jobs:
           uses: superfly/flyctl-actions/setup-flyctl@master
 
         - name: Set secret with new ip on fly
-          run: fly secrets set BACKEND_URL=http://${{ needs.create_backend_ec2.outputs.ec2_ip }}
+          run: flyctl secrets set BACKEND_URL=http://${{ needs.create_backend_ec2.outputs.ec2_ip }}
           env:
               FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -174,7 +174,7 @@ jobs:
         always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
         needs.detect_changes.outputs.backend == 'true'  &&
-        (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == true) &&
+        (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == 'true') &&
         (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
        
     runs-on: ubuntu-latest
