@@ -230,7 +230,6 @@ def url_callback():
     text_input_key = "text_input" + str(st.session_state["url_uploader_key"])
     if url := st.session_state.get(text_input_key):
         post_data_to_backend("upload", url, None)
-        # st.session_state["url_input"]=""
 
 
 def display_sidemenu():

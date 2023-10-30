@@ -189,7 +189,7 @@ jobs:
       # plain ping doesn't work with gh actions, is there a runner?
       # - name: Check if IP works and ec2 is up
       #   id: ping
-      #   run: ping -c 1 -w 300 -i 30 ${{ env.ec2_inst_id  }}
+      #   run: ping -c 1 -w 300 -i 30 ${{ eeds.create_backend_ec2.outputs.ec2_ip  }}
         
       - name: SSH into ec2 and pull current docker image
         env:
