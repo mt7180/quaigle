@@ -2,11 +2,6 @@ name: CI/CD
 run-name: CI/CD triggered by @${{ github.actor }}
 
 on: [push]
-  # push:
-  #   paths: 
-  #     - 'frontend/**'
-  #     - 'backend/**'
-  #     - 'infrastructure/**'
 
 #  ToDo: force deploy jobs to be executed after linting  
 jobs:
@@ -99,6 +94,7 @@ jobs:
       outputs:
         ec2_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
         old_ip: ${{ steps.pulumi.outputs.old_instance_ip }}
+        ec2_ip_changed: ${{ steps.pulumi.outputs.instance_public_ip != steps.pulumi.outputs.old_instance_ip }}
       defaults:
         run:
           working-directory: ./infrastructure
@@ -132,22 +128,12 @@ jobs:
         - run: |
             echo "Current ip: ${{ steps.pulumi.outputs.instance_public_ip }}"
             echo "Old ip: ${{ steps.pulumi.outputs.old_instance_ip }}"
-            echo "${{ steps.pulumi.outputs.instance_public_ip }}" > backend_public_ip.txt
-        # - name: Upload ec2 public ip to artifact
-        #   uses: actions/upload-artifact@v3
-        #   with:
-        #     name: backend_public_ip
-        #     path: ./infrastructure/backend_public_ip.txt
-
+  
   transfer_backend_ip:
       name: Transfer new backend-ip to frontend
       needs: create_backend_ec2
-      if: |
-        needs.create_backend_ec2.outputs.ec2_ip != needs.create_backend_ec2.outputs.old_ip
+      if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == true}}
       runs-on: ubuntu-latest
-      # defaults:
-      #   run:
-      #     working-directory: ./frontend
       steps:
         - name: Set up flyctl
           uses: superfly/flyctl-actions/setup-flyctl@master
@@ -185,21 +171,13 @@ jobs:
     if: |
         always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
-        (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true') &&
-        (needs.create_backend_ec2.result == 'success' || needs.create_backend_ec2.result == 'skipped') &&
+        needs.detect_changes.outputs.backend == 'true'  &&
+        (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == true) &&
         (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
        
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      # - name: Download ec2 IP from artifact
-      #   id: get_backend_ip
-      #   uses: actions/download-artifact@v2
-      #   with:
-      #     name: backend_public_ip
-      #     path: ./infrastructure
-      # - name: Export ec2 IP to env variable
-      #   run: echo "ec2_inst_id=$(cat ./infrastructure/backend_public_ip.txt)" >> $GITHUB_ENV
      
       # plain ping doesn't work with gh actions, is there a runner?
       # - name: Check if IP works and ec2 is up
