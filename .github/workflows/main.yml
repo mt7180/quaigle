@@ -189,16 +189,10 @@ jobs:
       - name: SSH into ec2 and pull current docker image
         env:
             PRIVATE_KEY: ${{ secrets.EC2_KEY  }}
-            # PRIVATE_KEY_NAME: ${{ secrets.EC2_KEY_NAME}}
             HOSTNAME : ${{ needs.create_backend_ec2.outputs.ec2_ip }}
             USER_NAME : ${{ secrets.EC2_USER  }}
             AWS_REGION : ${{ secrets.AWS_REGION }}
             APP_NAME :  ${{ github.repository }}
-        # https://blog.devops.dev/continuous-deployment-with-github-actions-dockerhub-and-aws-ec2-a-hands-on-tutorial-b01656a27963    
-        # https://farhan-tanvir.medium.com/ci-cd-from-github-to-aws-ec2-using-github-action-e18b621c0507
-        # https://github.com/jonashackt/pulumi-python-aws-ansible/blob/master/README.md#ssh-connection-to-the-pulumi-created-ec2-instance
-        # 
-
         run: |
           echo "${{ env.PRIVATE_KEY }}" > key && chmod 600 key
           ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
