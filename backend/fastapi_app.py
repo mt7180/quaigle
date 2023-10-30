@@ -356,7 +356,8 @@ def generate_quiz_from_context():
 
     response: Response = question_query_engine.query(
         """Please create a MultipleChoiceTest of 3 interesting and unique 
-        MultipleChoiceQuestion about the main subject of the given context.
+        MultipleChoiceQuestion about the main subject of the given context. Remember to
+        only formulate questions about the given context.
         """
     )
 

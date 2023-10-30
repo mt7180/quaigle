@@ -92,7 +92,7 @@ jobs:
         - name: lint with ruff
           uses: chartboost/ruff-action@v1          
                       
-  setup_backend_infrastructure:
+  setup_backend:
       name: setup backend infrastructure
       needs: detect_changes
       if: |
@@ -126,53 +126,38 @@ jobs:
           uses: pulumi/actions@v3
           with:
             command: up
-            stack-name: mt7180/quaigle_backend/dev
+            stack-name: ${{ github.repository }}_backend/dev
             work-dir: ./infrastructure
           env:
             PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
             APP_NAME :  ${{ github.repository }}
             GIT_USER : ${{ github.actor }}
-        - run: echo ${{ steps.pulumi.outputs.instance_public_ip }} > backend_public_ip.txt
+        - run: |
+            echo "Current ip: ${{ steps.pulumi.outputs.instance_public_ip }}"
+            echo "Old ip: ${{ steps.pulumi.outputs.old_instance_ip }}"
+            echo "${{ steps.pulumi.outputs.instance_public_ip }}" > backend_public_ip.txt
         - name: Upload ec2 public ip to artifact
           uses: actions/upload-artifact@v3
           with:
             name: backend_public_ip
             path: ./infrastructure/backend_public_ip.txt
 
-  Provide_frontend_with_new_backend_url:
-    name: Modify frontend Dockerfile
-    needs: setup_backend_infrastructure
-    if: |
-        needs.setup_backend_infrastructure.outputs.old_ip != needs.setup_backend_infrastructure.outputs.ec2_ip &&
-        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi'
-    runs-on: ubuntu-latest
-    steps:
-        - uses: actions/checkout@v2
-          with:
-            persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
-            fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-        - name: Give new backend-url to frontend
-          id: transfer_backend_url
+  Transfer_backend_ip:
+      name: Transfer new backend-ip to frontend
+      needs: setup_backend
+      runs-on: ubuntu-latest
+      defaults:
+        run:
           working-directory: ./frontend
-          run: |
-            echo "new content"
-            echo ${{ needs.setup_backend_infrastructure.outputs.ec2_ip }}
-
-        # ToDO: uncomment as next step to set backend url in frontend Dockerfile
-        #   python rewrite_frontend_dockerfile(${{ steps.pulumi.outputs.instance_public_ip }})
-        # - name: commit Dockerfile
-        #   if: ${{ steps.transfer_backend_url == 'true'}}
-        #   working-directory: .frontend
-        #   run: |
-        #     git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        #     git config --local user.name "github-actions[bot]"
-        #     git add .Dockerfile
-        #     git commit -m "automatic update of backend url in frontend Dockerfile"
-        # - name: push changes
-        #   uses: ad-m/github-push-action@master
-        #   with:
-        #     github_token: ${{ secrets.GITHUB_TOKEN }}
-        #     branch: ${{ github.ref }}
+      if: |
+        needs.setup_backend.outputs.ec2_ip != needs.setup_backend.outputs.old_ip
+      steps:
+        - name: Set up flyctl
+          uses: superfly/flyctl-actions/setup-flyctl@master
+        - name: Set secret with new ip on fly
+          run: fly secrets set BACKEND_URL=http://${{ needs.setup_backend.outputs.ec2_ip }}
+          env:
+              FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   build_backend_image:
     name: build backend image and push to ghcr
@@ -194,15 +179,16 @@ jobs:
 
   deploy_backend_container:
     name: deploy backend
-    needs: [detect_changes, build_backend_image, setup_backend_infrastructure]
+    needs: [detect_changes, build_backend_image, setup_backend]
     # always() can not be canceled, but the job needs to be run even if the preceeding jobs
     # defined in needs: are skipped (== canceled()). On the other
     # hand the job has to wait for the jobs defined in need: to have infrastructure and docker image prepared
+    # in consequence there is no other option than to use always()
     if: |
         always() && 
         github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
         (needs.detect_changes.outputs.backend == 'true' || needs.detect_changes.outputs.infrastructure == 'true') &&
-        (needs.setup_backend_infrastructure.result == 'success' || needs.setup_backend_infrastructure.result == 'skipped') &&
+        (needs.setup_backend.result == 'success' || needs.setup_backend.result == 'skipped') &&
         (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
        
     runs-on: ubuntu-latest

@@ -25,12 +25,14 @@ LLM_NAME = "gpt-3.5-turbo"
 
 load_dotenv()
 DEBUG_STATUS = int(os.getenv("DEBUG", 1))
-API_URL = os.getenv("BACKEND_URL", "http://localhost:8000/")
 
 if not DEBUG_STATUS:
     logging_level = logging.INFO
     SENTRY_DSN = os.getenv("SENTRY_DSN")
     sentry_sdk.init(SENTRY_DSN)
+
+API_URL = os.getenv("BACKEND_URL", "http://localhost") + ":8000"
+logging.info(f"{API_URL=}")
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
@@ -241,16 +243,16 @@ def display_sidemenu():
     col1, col2 = st.sidebar.columns((1, 2))
     col1.markdown(
         """
-        - txt 
-        - html
-        - sqlite 
+        - txt-file 
+        - website
+        - sqlite database
         """
     )
     col2.markdown(
         """
         - as upload
         - as url
-        - url or upload
+        - as upload
         """
     )
     with st.sidebar.container():
