@@ -139,18 +139,19 @@ jobs:
         #     name: backend_public_ip
         #     path: ./infrastructure/backend_public_ip.txt
 
-  Transfer_backend_ip:
+  transfer_backend_ip:
       name: Transfer new backend-ip to frontend
       needs: create_backend_ec2
-      runs-on: ubuntu-latest
-      defaults:
-        run:
-          working-directory: ./frontend
       if: |
         needs.create_backend_ec2.outputs.ec2_ip != needs.create_backend_ec2.outputs.old_ip
+      runs-on: ubuntu-latest
+      # defaults:
+      #   run:
+      #     working-directory: ./frontend
       steps:
         - name: Set up flyctl
           uses: superfly/flyctl-actions/setup-flyctl@master
+
         - name: Set secret with new ip on fly
           run: fly secrets set BACKEND_URL=http://${{ needs.create_backend_ec2.outputs.ec2_ip }}
           env:
@@ -228,7 +229,7 @@ jobs:
 
   deploy_frontend:
     name: deploy frontend
-    needs: detect_changes
+    needs: [detect_changes, transfer_backend_ip]
     if: |
         (github.ref == 'refs/heads/main' || github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' ) && 
         needs.detect_changes.outputs.frontend == 'true'
@@ -239,9 +240,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Echo job and branchname
-        run: echo "Running ${{ github.job}} on ${{ github.ref }}"
 
       - name: Set up flyctl
         uses: superfly/flyctl-actions/setup-flyctl@master
