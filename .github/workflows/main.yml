@@ -1,12 +1,12 @@
 name: CI/CD
 run-name: CI/CD triggered by @${{ github.actor }}
 
-on: 
-  push:
-    paths: 
-      - 'frontend/**'
-      - 'backend/**'
-      - 'infrastructure/**'
+on: [push]
+  # push:
+  #   paths: 
+  #     - 'frontend/**'
+  #     - 'backend/**'
+  #     - 'infrastructure/**'
 
 #  ToDo: force deploy jobs to be executed after linting  
 jobs:
@@ -94,7 +94,6 @@ jobs:
                       
   create_backend_ec2:
       name: pulumi up backend infrastructure
-      needs: detect_changes
       if: ${{ github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' }}
       runs-on: ubuntu-latest
       outputs:
@@ -134,11 +133,11 @@ jobs:
             echo "Current ip: ${{ steps.pulumi.outputs.instance_public_ip }}"
             echo "Old ip: ${{ steps.pulumi.outputs.old_instance_ip }}"
             echo "${{ steps.pulumi.outputs.instance_public_ip }}" > backend_public_ip.txt
-        - name: Upload ec2 public ip to artifact
-          uses: actions/upload-artifact@v3
-          with:
-            name: backend_public_ip
-            path: ./infrastructure/backend_public_ip.txt
+        # - name: Upload ec2 public ip to artifact
+        #   uses: actions/upload-artifact@v3
+        #   with:
+        #     name: backend_public_ip
+        #     path: ./infrastructure/backend_public_ip.txt
 
   Transfer_backend_ip:
       name: Transfer new backend-ip to frontend
