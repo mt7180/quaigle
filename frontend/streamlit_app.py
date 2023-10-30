@@ -238,23 +238,13 @@ def display_sidemenu():
     st.sidebar.markdown(
         """
     Please uploade your file or enter a url. Supported file types: 
-    """
-    )
-    col1, col2 = st.sidebar.columns((1, 2))
-    col1.markdown(
-        """
-        - txt-file 
-        - website
-        - sqlite database
+    
+    - txt     - as upload
+    - website - as url
+    - sqlite  - as upload
         """
     )
-    col2.markdown(
-        """
-        - as upload
-        - as url
-        - as upload
-        """
-    )
+
     with st.sidebar.container():
         success_message = st.empty()
         if st.file_uploader(
@@ -433,7 +423,7 @@ def post_ai_message_to_chat(message, document_category):
     else:
         st.session_state["chat_mode"] = "text"
         document_category_str += " text"
-    chat_message = f"""**Summary of the uploaded {document_category_str}:**  
+    chat_message = f"""**Upload of your text was successful:**  
     {message}"""
     st.session_state.messages.append(
         {

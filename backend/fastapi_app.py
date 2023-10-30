@@ -36,6 +36,7 @@ from .helpers import load_aws_secrets
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
+# LLM_NAME = "text-davinci-003"
 
 load_dotenv()  # can be set to override=True, if values changed
 DEBUG_MODE = int(os.getenv("DEBUG_MY_APP", 0))
@@ -349,7 +350,7 @@ def generate_quiz_from_context():
     refine_prompt = PromptTemplate(fmt_refine_tmpl, output_parser=output_parser)
 
     question_query_engine = vector_index.as_query_engine(
-        service_context=ServiceContext.from_defaults(),
+        service_context=ServiceContext.from_defaults(llm="gpt-3.5-turbo"),
         text_qa_template=qa_prompt,
         refine_template=refine_prompt,
     )

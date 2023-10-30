@@ -54,9 +54,13 @@ class AITextDocument:
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
         self.category = self.nodes[0].metadata["marvin_metadata"].get("category")
-        self.summary: str = " ".join(
-            node.metadata["marvin_metadata"].get("description") for node in self.nodes
-        )
+        # uncommented, because summary with marvin model is very slow, but it works
+        # self.summary: str = " ".join(
+        #     node.metadata["marvin_metadata"].get("description") for node in self.nodes
+        # )
+        text_subject = self.nodes[0].metadata["marvin_metadata"].get("description")
+        self.summary = f"You uploaded a {self.category.lower()} text, please ask any \
+            question about {text_subject}."
 
     @classmethod
     def _load_document(cls, identifier: str):
@@ -102,10 +106,16 @@ class AITextDocument:
 
 @ai_model
 class AIMarvinDocument(LlamaBaseModel):
+    # description: str = LlamaField(
+    #     ...,
+    #     description="""A brief summary of the main content of the
+    #     document.
+    #     """,
+    # )
     description: str = LlamaField(
         ...,
-        description="""A brief summary of the main content of the
-        document.
+        description="""main subject of the text, e.g. only the name of
+        a person or technology.
         """,
     )
     category: str = LlamaField(
@@ -118,9 +128,8 @@ class AIMarvinDocument(LlamaBaseModel):
 
 class AIHtmlDocument(AITextDocument):
     @classmethod
-    def _load_document(cls, identifier: str):
-        """loads the data of an html file at a given url
-
+    def _load_document_simplewebpageReader(cls, identifier: str):
+        """loads the data of a simple static website at a given url
         identifier: url of the html file as str
         """
         return SimpleWebPageReader(
@@ -128,6 +137,35 @@ class AIHtmlDocument(AITextDocument):
         ).load_data(
             [identifier]
         )[0]
+
+    @classmethod
+    def _load_document_BeautifulSoupWebReader(cls, identifier: str):
+        """loads the data of an html file at a given url
+        identifier: url of the html file as str
+        """
+        from llama_index import download_loader
+
+        BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
+
+        loader = BeautifulSoupWebReader()
+        return loader.load_data(urls=[identifier])[0]
+
+    @classmethod
+    def _load_document(cls, identifier: str):
+        """loads the data of an html file at a given url
+        identifier: url of the html file as str
+        """
+        if "wikipedia" in identifier:
+            return cls._load_document_BeautifulSoupWebReader(identifier)
+
+        # It's not easy to scrape complex/ dynamic websites, this is a task for
+        # itself and is not covered here.
+        # Currently LlamaHub offers some different options for WebReaders, but
+        # the ultimative cost-free Reader seems not to be availabe, yet.
+        # Check and if availabe implement better ones in future or work on
+        # configuring existing ones for specific tasks ...
+        # return cls._load_document_simplewebpageReader(identifier)
+        return cls._load_document_BeautifulSoupWebReader(identifier)
 
 
 class CustomLlamaIndexChatEngineWrapper:
@@ -142,7 +180,8 @@ class CustomLlamaIndexChatEngineWrapper:
     specifies the number of sentences.
     """
 
-    OPENAI_MODEL = "gpt-3.5-turbo"
+    OPENAI_MODEL = "gpt-3.5-turbo-instruct"
+    # OPENAI_MODEL = "text-davinci-003"
     cfd = pathlib.Path(__file__).parent
 
     def __init__(self, callback_manager=None):
@@ -232,7 +271,8 @@ class CustomLlamaIndexChatEngineWrapper:
                 MetadataInfo(
                     name="description",
                     type="str",
-                    description="a brief summary of the document content",
+                    # description="a brief summary of the document content",
+                    description="main document content in one word",
                 ),
             ],
         )
