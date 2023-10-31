@@ -205,6 +205,7 @@ jobs:
           for count in $(seq 1 $retries); do
             ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
               sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
+              sudo docker stop ghcr.io/${{ github.repository }}_backend_container &&
               sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force &&
               sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
             ' && success=true && break
