@@ -64,7 +64,7 @@ logging.info(f"debug on: {bool(DEBUG_MODE)}")
 app = FastAPI()
 cfd = Path(__file__).parent
 data_dir = "data"
-logging.info(f"current file dir fastapiapp: {cfd}")
+logging.info(f"Current fastapiapp dir : {cfd}")
 
 # Set-up Chat Engine:
 # - LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine for text files
