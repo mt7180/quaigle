@@ -14,7 +14,6 @@ from operator import itemgetter
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
-# openai_log = "debug"
 
 
 class CustomTokenCounter:
