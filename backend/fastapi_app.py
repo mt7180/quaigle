@@ -37,7 +37,6 @@ from .helpers import load_aws_secrets
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
-# LLM_NAME = "text-davinci-003"
 
 load_dotenv()  # can be set to override=True, if values changed
 DEBUG_MODE = int(os.getenv("DEBUG_MY_APP", 0))
