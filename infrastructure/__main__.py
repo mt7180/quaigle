@@ -2,10 +2,10 @@
 
 import pulumi
 from pulumi_aws import ec2, iam
-import pulumi_command as command
 
 import re
 import json
+import time
 
 
 # EC2 Instance Configuration
@@ -186,10 +186,11 @@ echo \
   "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
-
-sudo apt-get install docker-ce docker-ce-cli containerd.io \
-    docker-buildx-plugin docker-compose-plugin --yes
+sudo apt-get install docker-ce docker-ce-cli --yes
+sudo apt-get update
 """
+# sudo apt-get install docker-ce docker-ce-cli containerd.io \
+#    docker-buildx-plugin docker-compose-plugin --yes
 
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
@@ -209,12 +210,8 @@ ec2_instance = ec2.Instance(
     iam_instance_profile=ec2_iam_instance_profile.name,
 )
 
-cmd = command.local.Command(
-    "my-command",
-    create="echo 'This will execute after the instance with user data is created'",
-    # Specify the command depends on the above instance creation
-    opts=pulumi.ResourceOptions(depends_on=[ec2_instance]),
-)
+time.sleep(40)
+
 pulumi.export("old_instance_ip", old_instance_ip)
 pulumi.export("ec2_instance_id", ec2_instance.id)
 pulumi.export("instance_public_ip", ec2_instance.public_ip)

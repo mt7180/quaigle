@@ -200,11 +200,20 @@ jobs:
             APP_NAME :  ${{ github.repository }}
         run: |
           echo "${{ env.PRIVATE_KEY }}" > key && chmod 600 key
-          ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
-            sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
-            sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force &&
-            sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
-          '
+          success=false
+          retries=10
+          for count in $(seq 1 $retries); do
+            ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
+              sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
+              sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force &&
+              sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
+            ' && success=true && break
+            sleep 30
+          done
+          if [ "$success" = false ]; then
+            echo "Docker login and image operations failed after $retries attempts."
+            exit 1
+          fi
 
   deploy_frontend:
     name: deploy frontend
