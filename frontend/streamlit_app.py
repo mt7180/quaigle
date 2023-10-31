@@ -174,7 +174,6 @@ def make_get_request(route: str):
     return requests.get(os.path.join(API_URL, route))
 
 
-# def make_post_request(route:str, data):
 def post_data_to_backend(
     route: str, url: str = "", uploaded_file: UploadFile | None = None
 ):

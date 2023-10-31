@@ -220,6 +220,7 @@ jobs:
     name: deploy frontend
     needs: [detect_changes, transfer_backend_ip]
     if: |
+        always() &&
         (github.ref == 'refs/heads/main' || github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' ) && 
         needs.detect_changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest

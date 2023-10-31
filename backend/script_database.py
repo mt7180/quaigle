@@ -55,6 +55,7 @@ class AIDataBase(SQLDatabase):
         return self.run(working_dict["query"])
 
     def ask_a_question(self, question: str, token_callback: CustomTokenCounter) -> str:
+        """with langchain SQLDatabaseChain and Runnables"""
         llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
         # logging.debug(self.get_table_info())
         with get_openai_callback() as callback:
