@@ -182,6 +182,8 @@ class AIHtmlDocument(AITextDocument):
 
 
 class CustomLlamaIndexChatEngineWrapper:
+    """A LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine"""
+
     system_prompt: str = """You are a chatbot that responds to all questions about 
     the given context. The user gives you instructions on which questions to answer. 
     When you write the answers, you need to make sure that the user's expectations are 
