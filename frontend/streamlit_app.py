@@ -238,9 +238,10 @@ def display_sidemenu():
         """
     Please uploade your file or enter a url. Supported file types: 
     
-    - txt     - as upload
+    - txt - as upload
+    - pdf - as upload
     - website - as url
-    - sqlite  - as upload
+    - sqlite - as upload
         """
     )
 
@@ -248,7 +249,7 @@ def display_sidemenu():
         success_message = st.empty()
         if st.file_uploader(
             "dragndrop",
-            type=["txt", "sqlite"],
+            type=["txt", "pdf", "sqlite"],
             on_change=uploader_callback,
             key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
@@ -296,9 +297,7 @@ def questionai():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input(
-            "-> Ask questions about the content of your document, AI will answer..."
-        ):
+        if prompt := st.chat_input("-> Your Question ..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)

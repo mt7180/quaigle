@@ -19,6 +19,7 @@ import sentry_sdk
 
 from .script import (
     AITextDocument,
+    AIPdfDocument,
     AIHtmlDocument,
     CustomLlamaIndexChatEngineWrapper,
     set_up_text_chatbot,
@@ -169,6 +170,9 @@ async def handle_uploadfile(
         case "txt":
             load_text_chat_engine()
             return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+        case "pdf":
+            load_text_chat_engine()
+            return AIPdfDocument(file_name, LLM_NAME, app.callback_manager)
         case "sqlite" | "db":
             uri = f"sqlite:///{app_dir}/{data_dir}/{file_name}"
             logging.debug(f"uri: {uri} debug {DEBUG_MODE}")

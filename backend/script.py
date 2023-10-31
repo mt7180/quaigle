@@ -126,6 +126,19 @@ class AIMarvinDocument(LlamaBaseModel):
     )
 
 
+class AIPdfDocument(AITextDocument):
+    @classmethod
+    def _load_document(cls, identifier: str):
+        from llama_index import download_loader
+
+        PDFReader = download_loader("PDFReader")
+
+        loader = PDFReader()
+        return loader.load_data(
+            file=pathlib.Path(str(AITextDocument.cfd / identifier))
+        )[0]
+
+
 class AIHtmlDocument(AITextDocument):
     @classmethod
     def _load_document_simplewebpageReader(cls, identifier: str):
