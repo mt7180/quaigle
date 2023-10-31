@@ -59,7 +59,7 @@ else:
 
 logging.basicConfig(stream=sys.stdout, level=logging_level)
 logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
-logging.info(f"debug on: {bool(DEBUG_MODE)}")
+logging.info(f"Debug enabled: {bool(DEBUG_MODE)}")
 
 app = FastAPI()
 cfd = Path(__file__).parent
