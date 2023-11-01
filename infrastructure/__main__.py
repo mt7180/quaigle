@@ -192,6 +192,7 @@ sudo apt-get update
 # sudo apt-get install docker-ce docker-ce-cli containerd.io \
 #    docker-buildx-plugin docker-compose-plugin --yes
 
+
 # Create an EC2 instance
 ec2_instance = ec2.Instance(
     "quaigle_aws_ec2_ubuntu",
