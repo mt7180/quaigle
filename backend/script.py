@@ -94,14 +94,14 @@ class AITextDocument:
         )
 
     def split_document_and_extract_metadata(self, llm_str):
-        text_splitter = self._get_text_splitter()
+        # text_splitter = self._get_text_splitter()
         metadata_extractor = self._get_metadata_extractor(llm_str)
-        node_parser = SimpleNodeParser(
-            text_splitter=text_splitter,
+        node_parser = SimpleNodeParser.from_defaults(
+            # text_splitter=text_splitter,
             metadata_extractor=metadata_extractor,
             callback_manager=self.callback_manager,
         )
-        return node_parser.get_nodes_from_documents([self.document])
+        return node_parser.get_nodes_from_documents([self.document], show_progress=True)
 
 
 @ai_model
@@ -357,25 +357,22 @@ if __name__ == "__main__":
     # openai_log = "debug"
 
     chat_engine, callback_manager, token_counter = set_up_text_chatbot()
+    chat_engine.clear_data_storage()
 
     try:
-        document = AITextDocument("test2.txt", "gpt-3.5-turbo", callback_manager)
+        url = "https://medium.com/how-ai-built-this/zero-to-one-a-guide-to-building-a-first-pdf-chatbot-with-langchain-llamaindex-part-1-7d0e9c0d62f"
+        # "https://en.wikipedia.org/wiki/Sandor_Szondi"
+        document = AIHtmlDocument(url, "gpt-3.5-turbo", callback_manager)
         chat_engine.add_document(document)
 
     except Exception as e:
         print(f"ERROR while loading and adding document to vector index: {e.args}")
         exit()
 
-    questions = [
-        "Where did Einstein live?",
-        "What did he work on?",  # does memory work (-> he)?
-        # correct response: There is no information provided in the context
-        # about Einstein's favorite food.
-        "What was his favorite food?",
-    ]
-    for question in questions:
+    while True:
+        question = input("Your Question: ")
         response = chat_engine.chat_engine.chat(question)
-        print(response.response)
+        print(f"Agent: {response}")
         logging.info(
             f"Number of used tokens: {token_counter.total_embedding_token_count}"
         )
