@@ -57,7 +57,8 @@ else:
     app_dir = "code"
 
 logging.basicConfig(stream=sys.stdout, level=logging_level)
-logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
+# logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
 logging.info(f"Debug enabled: {bool(DEBUG_MODE)}")
 
 app = FastAPI()
@@ -131,7 +132,7 @@ class MultipleChoiceQuestion(BaseModel):
 class MultipleChoiceTest(BaseModel):
     """Data Model for a multiple choice test"""
 
-    questions: List[MultipleChoiceQuestion]
+    questions: List[MultipleChoiceQuestion] = []
 
 
 class ErrorResponse(BaseModel):
@@ -362,7 +363,7 @@ def generate_quiz_from_context():
 
     response: Response = question_query_engine.query(
         """Please create a MultipleChoiceTest of 3 interesting and unique 
-        MultipleChoiceQuestion about the main subject of the given context. Remember to
+        MultipleChoiceQuestions about the main subject of the given context. Remember to
         only formulate questions about the given context.
         """
     )
