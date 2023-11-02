@@ -149,7 +149,6 @@ def display_options_menu():
                 "clipboard2-check",
                 "activity",
             ],  # https://icons.getbootstrap.com/
-            # menu_icon="cast",
             on_change=set_selected_page,
             default_index=translate.get(st.session_state["selected_page"], 0),
             # small hack to prevent menu flom flicking to default

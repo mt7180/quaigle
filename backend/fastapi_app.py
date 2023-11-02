@@ -57,8 +57,8 @@ else:
     app_dir = "code"
 
 logging.basicConfig(stream=sys.stdout, level=logging_level)
-# logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
+
 logging.info(f"Debug enabled: {bool(DEBUG_MODE)}")
 
 app = FastAPI()
