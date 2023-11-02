@@ -264,7 +264,7 @@ class CustomLlamaIndexChatEngineWrapper:
             ],  # current use case: no docs availabe, so empty list []
             service_context=self.service_context,
             # storage_context=self.storage_context,
-        )  # openai api is called with whole text to make the embeddings
+        )
 
     def _add_to_vector_index(self, nodes):
         self.vector_index.insert_nodes(
