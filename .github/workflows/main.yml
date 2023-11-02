@@ -185,7 +185,7 @@ jobs:
           ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
             sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
             sudo docker stop ghcr.io/${{ github.repository }}_backend_container
-            sleep 30
+            sudo service docker stop
             sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force
             sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
           '

@@ -228,9 +228,6 @@ async def upload_file(
             message = document.summary
             text_category = document.category
             used_tokens = app.token_counter.total_llm_token_count
-    # except HTTPException as e:
-    #     # message = f"There was an error on uploading your text/ url: {e.detail}"
-    #     raise
     except MissingSchema:
         raise HTTPException(
             status_code=400,
