@@ -332,6 +332,12 @@ def get_quiz():
 
 
 def generate_quiz_from_context():
+    # Possible enhancements for future:
+    # use  Llamaindex DatasetGenerator and RelevancyEvaluator in combination with gpt4
+    # to generate a list of questions of relevance that could be asked about the data
+    # https://gpt-index.readthedocs.io/en/latest/examples/evaluation/QuestionGeneration.html
+    # https://betterprogramming.pub/llamaindex-how-to-evaluate-your-rag-retrieval-augmented-generation-applications-2c83490f489
+
     from llama_index.output_parsers import LangchainOutputParser
     from langchain.output_parsers import PydanticOutputParser
     from llama_index.prompts.default_prompts import (
@@ -342,7 +348,6 @@ def generate_quiz_from_context():
     from llama_index.response import Response
 
     vector_index = app.chat_engine.vector_index
-
     lc_output_parser = PydanticOutputParser(pydantic_object=MultipleChoiceTest)
     output_parser = LangchainOutputParser(lc_output_parser)
 

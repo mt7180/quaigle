@@ -38,6 +38,8 @@ class CustomTokenCounter:
 
 
 class AIDataBase(SQLDatabase):
+    """querying a database with langchain SQLDatabaseChain and Runnables"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.category = "database"
@@ -87,7 +89,7 @@ class AIDataBase(SQLDatabase):
                 }
                 | ChatPromptTemplate.from_template(
                     """Based on the question and the sql response, 
-                    write a natural language response anf finally add 
+                    write a natural language response and finally add 
                     the sql query to your response:
 
                     Question: {question}
