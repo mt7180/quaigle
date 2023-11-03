@@ -1,18 +1,15 @@
 name: CI/CD
-run-name: CICD triggered by @${{ github.actor }}
+run-name: CI/CD triggered by @${{ github.actor }}
 
-on: 
-  push:
-    paths: 
-      - 'frontend/**'
-      - 'backend/**'
-   
+on: [push]
+
 jobs:
-    changes:
+  detect_changes:
       runs-on: ubuntu-latest
       outputs:
         backend: ${{ steps.changes.outputs.backend }}
         frontend: ${{ steps.changes.outputs.frontend }}
+        infrastructure: ${{ steps.changes.outputs.infrastructure }}
       steps:
         - uses: actions/checkout@v3
         - uses: dorny/paths-filter@v2
@@ -24,89 +21,199 @@ jobs:
                 - 'frontend/**'
               backend:
                 - 'backend/**'
-              
-    lint_frontend:
-        name: lint frontend
-        needs: changes
-        if: ${{ needs.changes.outputs.frontend == 'true' }}
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./frontend
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v3
-
-            - name: Echo job and branchname
-              run: echo "Running ${{ github.job }} on ${{ github.ref }}"
-
-            - name: set up python
-              uses: actions/setup-python@v2
-              with:
-                python-version: '3.10'
-
-            - name: install dependencies
-              run: |
-                python -m pip install --upgrade pip
-                pip install -r requirements.txt
-
-            - name: lint with black
-              uses: psf/black@stable
+              infrastructure:
+                - 'infrastructure/**'
             
-            - name: lint with ruff
-              uses: chartboost/ruff-action@v1
-    
-    lint_backend:
-        name: lint backend
-        needs: changes
-        if: ${{ needs.changes.outputs.backend == 'true' }}
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./backend
-        steps:
-            - name: Checkout code
-              uses: actions/checkout@v3
-
-            - name: Echo job and branchname
-              run: echo "Running ${{ github.job }} on ${{ github.ref }}"
-
-            - name: set up python
-              uses: actions/setup-python@v2
-              with:
-                python-version: '3.10'
-
-            - name: install dependencies
-              run: |
-                python -m pip install --upgrade pip
-                pip install -r requirements.txt
-
-            - name: lint with black
-              uses: psf/black@stable
-            
-            - name: lint with ruff
-              uses: chartboost/ruff-action@v1
-
-    deploy_frontend:
-        name: deploy frontend
-        needs: changes
-        if: ${{ github.ref == 'refs/heads/main' && needs.changes.outputs.frontend == 'true' }}
-        runs-on: ubuntu-latest
-        defaults:
-            run:
-                working-directory: ./frontend
-        steps:
+  lint_frontend:
+      name: lint frontend
+      needs: detect_changes
+      if: ${{ needs.detect_changes.outputs.frontend == 'true' }}
+      runs-on: ubuntu-latest
+      defaults:
+          run:
+              working-directory: ./frontend
+      steps:        
           - name: Checkout code
             uses: actions/checkout@v3
+            
+          - name: lint with ruff
+            uses: chartboost/ruff-action@v1
 
-          - name: Echo job and branchname
-            run: echo "Running ${{ github.job}} on ${{ github.ref }}"
+  lint_backend:
+      name: lint backend
+      needs: detect_changes
+      if: ${{ needs.detect_changes.outputs.backend == 'true' }}
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+          working-directory: ./backend
+      steps:
+        - name: Checkout code
+          uses: actions/checkout@v3
+        
+        - name: lint with ruff
+          uses: chartboost/ruff-action@v1          
+                      
+  create_backend_ec2:
+      name: pulumi up backend infrastructure
+      needs: detect_changes
+      if: |
+        github.ref_name == 'main' &&
+        (needs.detect_changes.outputs.backend == 'true' ||
+        needs.detect_changes.outputs.frontend == 'true' ||
+        needs.detect_changes.outputs.infrastructure == 'true')
+      runs-on: ubuntu-latest
+      outputs:
+        ec2_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
+        old_ip: ${{ steps.pulumi.outputs.old_instance_ip }}
+        ec2_ip_changed: ${{ steps.pulumi.outputs.instance_public_ip != steps.pulumi.outputs.old_instance_ip }}
+      defaults:
+        run:
+          working-directory: ./infrastructure
+      steps:
+        - uses: actions/checkout@v3
+        - name: Set up python
+          uses: actions/setup-python@v2
+          with:
+            python-version: '3.10'
+        - name: Configure AWS Credentials
+          uses: aws-actions/configure-aws-credentials@v1
+          with:
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-region: ${{ secrets.AWS_REGION }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        - name: Install dependencies
+          run: |
+            python -m pip install --upgrade pip
+            pip install -r requirements.txt
+        - name: Set-up stack
+          id: pulumi
+          uses: pulumi/actions@v3
+          with:
+            command: up
+            stack-name: ${{ github.repository }}_backend/dev
+            work-dir: ./infrastructure
+          env:
+            PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+            APP_NAME :  ${{ github.repository }}
+            GIT_USER : ${{ github.actor }}
+        - run: |
+            echo "Current ip: ${{ steps.pulumi.outputs.instance_public_ip }}"
+            echo "Old ip: ${{ steps.pulumi.outputs.old_instance_ip }}"
+            echo "Change: ${{ steps.pulumi.outputs.instance_public_ip != steps.pulumi.outputs.old_instance_ip }}"
+  
+  transfer_backend_ip:
+      name: Transfer new backend-ip to frontend
+      needs: create_backend_ec2
+      if: ${{ needs.create_backend_ec2.outputs.ec2_ip_changed == 'true'}}
+      runs-on: ubuntu-latest
+      defaults:
+        run:
+            working-directory: ./frontend
 
-          - name: Set up flyctl
-            uses: superfly/flyctl-actions/setup-flyctl@master
+      steps:
+        - uses: actions/checkout@v3
+        - run: echo "${{ needs.create_backend_ec2.outputs.ec2_ip_changed }}"
+        - name: Set up flyctl
+          uses: superfly/flyctl-actions/setup-flyctl@master
 
-          - name: Deploy on fly
-            run: flyctl deploy --remote-only
-            env:
-                FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        - name: Set secret with new ip on fly
+          run: flyctl secrets set BACKEND_URL=http://${{ needs.create_backend_ec2.outputs.ec2_ip }}
+          env:
+              FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  build_backend_image:
+    name: build backend image and push to ghcr
+    needs: lint_backend
+    if: |
+        github.ref_name == 'main' &&
+        needs.lint_backend.result == 'success' 
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build and push image to GHCR
+        run: |
+          docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT}} ghcr.io
+          docker build . -t ghcr.io/${{ github.repository }}_backend_container:latest
+          docker push ghcr.io/${{ github.repository }}_backend_container:latest
+
+  deploy_backend_container:
+    name: deploy backend
+    needs: [lint_backend, build_backend_image, create_backend_ec2]
+    # always() can not be canceled, but the job needs to be run even if the preceeding jobs
+    # defined in needs: are skipped (== canceled()). On the other
+    # hand the job has to wait for the jobs defined in needs: to have infrastructure and docker image prepared
+    # in consequence there is no other option than to use always()
+    if: |
+        always() && 
+        github.ref_name == 'main' && 
+        (needs.lint_backend.result == 'success'  ||
+        (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == 'true')) &&
+        (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
+       
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+     
+      # plain ping doesn't work with gh actions, is there a runner?
+      # - name: Check if IP works and ec2 is up
+      #   id: ping
+      #   run: ping -c 1 -w 300 -i 30 ${{ eeds.create_backend_ec2.outputs.ec2_ip  }}
+        
+      - name: SSH into ec2 and pull current docker image
+        env:
+            PRIVATE_KEY: ${{ secrets.EC2_KEY  }}
+            HOSTNAME : ${{ needs.create_backend_ec2.outputs.ec2_ip }}
+            USER_NAME : ${{ secrets.EC2_USER  }}
+            AWS_REGION : ${{ secrets.AWS_REGION }}
+            APP_NAME :  ${{ github.repository }}
+        run: |
+          echo "${{ env.PRIVATE_KEY }}" > key && chmod 600 key
+          # Test if docker installation is ready
+          success=false
+          retries=10
+          for count in $(seq 1 $retries); do
+            ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
+              sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io
+            ' && success=true && break
+            sleep 30
+          done
+          if [ "$success" = false ]; then
+            echo "Docker login and image operations failed after $retries attempts."
+            exit 1
+          fi
+          
+          ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
+            sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
+            sudo docker stop ghcr.io/${{ github.repository }}_backend_container
+            sudo service docker stop
+            sudo docker image rm ghcr.io/${{ github.repository }}_backend_container --force
+            sudo docker run -d -p 8000:8000 ghcr.io/${{ github.repository }}_backend_container:latest
+          '
+
+  deploy_frontend:
+    name: deploy frontend
+    needs: [lint_frontend, transfer_backend_ip]
+    if: |
+        always() &&
+        github.ref == 'refs/heads/main' && 
+        needs.lint_frontend.result == 'success' 
+    runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: ./frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy on fly
+        run: flyctl deploy --remote-only
+        env:
+            FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 

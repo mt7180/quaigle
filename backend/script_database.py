@@ -12,9 +12,8 @@ from langchain.callbacks import get_openai_callback
 
 from operator import itemgetter
 
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
-# openai_log = "debug"
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
 
 
 class CustomTokenCounter:
@@ -39,6 +38,8 @@ class CustomTokenCounter:
 
 
 class AIDataBase(SQLDatabase):
+    """querying a database with langchain SQLDatabaseChain and Runnables"""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.category = "database"
@@ -55,6 +56,7 @@ class AIDataBase(SQLDatabase):
         return self.run(working_dict["query"])
 
     def ask_a_question(self, question: str, token_callback: CustomTokenCounter) -> str:
+        """with langchain SQLDatabaseChain and Runnables"""
         llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
         # logging.debug(self.get_table_info())
         with get_openai_callback() as callback:
@@ -87,7 +89,7 @@ class AIDataBase(SQLDatabase):
                 }
                 | ChatPromptTemplate.from_template(
                     """Based on the question and the sql response, 
-                    write a natural language response anf finally add 
+                    write a natural language response and finally add 
                     the sql query to your response:
 
                     Question: {question}

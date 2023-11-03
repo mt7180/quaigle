@@ -14,10 +14,12 @@ from dotenv import load_dotenv
 from pathlib import Path
 import errno
 import certifi
+
 import sentry_sdk
 
 from .script import (
     AITextDocument,
+    AIPdfDocument,
     AIHtmlDocument,
     CustomLlamaIndexChatEngineWrapper,
     set_up_text_chatbot,
@@ -29,14 +31,15 @@ from .script_database import (
     set_up_database_chatbot,
 )
 
+from .helpers import load_aws_secrets
+
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
 os.environ["REQUESTS_CA_BUNDLE"] = certifi.where()
 os.environ["SSL_CERT_FILE"] = certifi.where()
 LLM_NAME = "gpt-3.5-turbo"
 
-load_dotenv()
-DEBUG_MODE = int(os.getenv("DEBUG", 1))
-print("debug status: ", DEBUG_MODE)
+load_dotenv()  # can be set to override=True, if values changed
+DEBUG_MODE = int(os.getenv("DEBUG_MY_APP", 0))
 
 if DEBUG_MODE:
     openai_log = "debug"
@@ -44,18 +47,24 @@ if DEBUG_MODE:
     app_dir = "backend"
 else:
     logging_level = logging.INFO
-    SENTRY_DSN = os.getenv("SENTRY_DSN")
-    sentry_sdk.init(SENTRY_DSN)
+    load_aws_secrets()
+    SENTRY_DSN = os.getenv("SENTRY_DSN_BACKEND")
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        # Enable performance monitoring
+        enable_tracing=True,
+    )
     app_dir = "code"
 
-
 logging.basicConfig(stream=sys.stdout, level=logging_level)
-logging.getLogger().addHandler(logging.StreamHandler(stream=sys.stdout))
+logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
+
+logging.info(f"Debug enabled: {bool(DEBUG_MODE)}")
 
 app = FastAPI()
 cfd = Path(__file__).parent
 data_dir = "data"
-logging.info(f"current file dir fastapiapp: {cfd}")
+logging.info(f"Current fastapiapp dir : {cfd}")
 
 # Set-up Chat Engine:
 # - LlamaIndex CondenseQuestionChatEngine with RetrieverQueryEngine for text files
@@ -123,7 +132,7 @@ class MultipleChoiceQuestion(BaseModel):
 class MultipleChoiceTest(BaseModel):
     """Data Model for a multiple choice test"""
 
-    questions: List[MultipleChoiceQuestion]
+    questions: List[MultipleChoiceQuestion] = []
 
 
 class ErrorResponse(BaseModel):
@@ -161,6 +170,9 @@ async def handle_uploadfile(
         case "txt":
             load_text_chat_engine()
             return AITextDocument(file_name, LLM_NAME, app.callback_manager)
+        case "pdf":
+            load_text_chat_engine()
+            return AIPdfDocument(file_name, LLM_NAME, app.callback_manager)
         case "sqlite" | "db":
             uri = f"sqlite:///{app_dir}/{data_dir}/{file_name}"
             logging.debug(f"uri: {uri} debug {DEBUG_MODE}")
@@ -192,7 +204,6 @@ async def handle_upload_url(upload_url):
 async def upload_file(
     upload_file: UploadFile | None = None, upload_url: str = Form("")
 ):
-    # app.token_counter.reset_counts()
     message = ""
     text_category = ""
     file_name = ""
@@ -218,9 +229,6 @@ async def upload_file(
             message = document.summary
             text_category = document.category
             used_tokens = app.token_counter.total_llm_token_count
-    # except HTTPException as e:
-    #     # message = f"There was an error on uploading your text/ url: {e.detail}"
-    #     raise
     except MissingSchema:
         raise HTTPException(
             status_code=400,
@@ -273,7 +281,7 @@ async def qa_text(question: QuestionModel):
 async def clear_storage():
     if app.chat_engine:
         app.chat_engine.clear_data_storage()
-        logging.debug("chat engine cleared...")
+        logging.info("chat engine cleared...")
     if (cfd / "data").exists():
         for file in Path(cfd / "data").iterdir():
             os.remove(file)
@@ -296,7 +304,6 @@ async def clear_history():
 
 @app.get(
     "/quiz",
-    # response_model=MultipleChoiceTest,
     responses={
         200: {"model": MultipleChoiceTest},
         400: {"model": ErrorResponse},
@@ -320,10 +327,14 @@ def get_quiz():
     quiz = generate_quiz_from_context()
     return quiz
 
-    # return response.response_txt
-
 
 def generate_quiz_from_context():
+    # Possible enhancements for future:
+    # use  Llamaindex DatasetGenerator and RelevancyEvaluator in combination with gpt4
+    # to generate a list of questions of relevance that could be asked about the data
+    # https://gpt-index.readthedocs.io/en/latest/examples/evaluation/QuestionGeneration.html
+    # https://betterprogramming.pub/llamaindex-how-to-evaluate-your-rag-retrieval-augmented-generation-applications-2c83490f489
+
     from llama_index.output_parsers import LangchainOutputParser
     from langchain.output_parsers import PydanticOutputParser
     from llama_index.prompts.default_prompts import (
@@ -334,7 +345,6 @@ def generate_quiz_from_context():
     from llama_index.response import Response
 
     vector_index = app.chat_engine.vector_index
-
     lc_output_parser = PydanticOutputParser(pydantic_object=MultipleChoiceTest)
     output_parser = LangchainOutputParser(lc_output_parser)
 
@@ -345,14 +355,15 @@ def generate_quiz_from_context():
     refine_prompt = PromptTemplate(fmt_refine_tmpl, output_parser=output_parser)
 
     question_query_engine = vector_index.as_query_engine(
-        service_context=ServiceContext.from_defaults(),
+        service_context=ServiceContext.from_defaults(llm="gpt-3.5-turbo"),
         text_qa_template=qa_prompt,
         refine_template=refine_prompt,
     )
 
     response: Response = question_query_engine.query(
         """Please create a MultipleChoiceTest of 3 interesting and unique 
-        MultipleChoiceQuestion about the main subject of the given context.
+        MultipleChoiceQuestions about the main subject of the given context. Remember to
+        only formulate questions about the given context.
         """
     )
 

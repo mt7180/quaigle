@@ -26,15 +26,13 @@ LLM_NAME = "gpt-3.5-turbo"
 load_dotenv()
 DEBUG_STATUS = int(os.getenv("DEBUG", 1))
 
-API_URL = (
-    "http://localhost:8000/" if DEBUG_STATUS else "http://quaigleapi.internal:8000"
-)
-
 if not DEBUG_STATUS:
     logging_level = logging.INFO
     SENTRY_DSN = os.getenv("SENTRY_DSN")
     sentry_sdk.init(SENTRY_DSN)
 
+API_URL = os.getenv("BACKEND_URL", "http://localhost") + ":8000"
+logging.info(f"{API_URL=}")
 
 APP_TITLE = "Quaigle"
 MAIN_PAGE = {}
@@ -151,7 +149,6 @@ def display_options_menu():
                 "clipboard2-check",
                 "activity",
             ],  # https://icons.getbootstrap.com/
-            # menu_icon="cast",
             on_change=set_selected_page,
             default_index=translate.get(st.session_state["selected_page"], 0),
             # small hack to prevent menu flom flicking to default
@@ -176,7 +173,6 @@ def make_get_request(route: str):
     return requests.get(os.path.join(API_URL, route))
 
 
-# def make_post_request(route:str, data):
 def post_data_to_backend(
     route: str, url: str = "", uploaded_file: UploadFile | None = None
 ):
@@ -232,7 +228,6 @@ def url_callback():
     text_input_key = "text_input" + str(st.session_state["url_uploader_key"])
     if url := st.session_state.get(text_input_key):
         post_data_to_backend("upload", url, None)
-        # st.session_state["url_input"]=""
 
 
 def display_sidemenu():
@@ -240,28 +235,19 @@ def display_sidemenu():
     st.sidebar.markdown(
         """
     Please uploade your file or enter a url. Supported file types: 
-    """
-    )
-    col1, col2 = st.sidebar.columns((1, 2))
-    col1.markdown(
-        """
-        - txt 
-        - html
-        - sqlite 
+    
+    - txt - as upload
+    - pdf - as upload
+    - website - as url
+    - sqlite - as upload
         """
     )
-    col2.markdown(
-        """
-        - as upload
-        - as url
-        - url or upload
-        """
-    )
+
     with st.sidebar.container():
         success_message = st.empty()
         if st.file_uploader(
             "dragndrop",
-            type=["txt", "sqlite"],
+            type=["txt", "pdf", "sqlite"],
             on_change=uploader_callback,
             key="file_uploader" + str(st.session_state["file_uploader_key"]),
             label_visibility="collapsed",
@@ -309,9 +295,7 @@ def questionai():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-        if prompt := st.chat_input(
-            "-> Ask questions about the content of your document, AI will answer..."
-        ):
+        if prompt := st.chat_input("-> Your Question ..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
             with st.chat_message("user"):
                 st.markdown(prompt)
@@ -435,7 +419,7 @@ def post_ai_message_to_chat(message, document_category):
     else:
         st.session_state["chat_mode"] = "text"
         document_category_str += " text"
-    chat_message = f"""**Summary of the uploaded {document_category_str}:**  
+    chat_message = f"""**Upload of your text was successful:**  
     {message}"""
     st.session_state.messages.append(
         {
