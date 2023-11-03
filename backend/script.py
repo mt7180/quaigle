@@ -54,13 +54,9 @@ class AITextDocument:
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
         self.category = self.nodes[0].metadata["marvin_metadata"].get("category")
-        # uncommented, because summary with marvin model is very slow, but it works
-        # self.summary: str = " ".join(
-        #     node.metadata["marvin_metadata"].get("description") for node in self.nodes
-        # )
         text_subject = self.nodes[0].metadata["marvin_metadata"].get("description")
-        self.summary = f"You uploaded a {self.category.lower()} text, please ask any \
-            question about {text_subject}."
+        self.summary = f'You uploaded a {self.category.lower()} text, please ask any \
+            question about "{text_subject}".'
 
     @classmethod
     def _load_document(cls, identifier: str):
@@ -239,9 +235,7 @@ class CustomLlamaIndexChatEngineWrapper:
     def add_document(self, document: AITextDocument) -> None:
         self.documents.append(document)
         self._add_to_vector_index(document.nodes)
-        self.data_category = (
-            document.category
-        )  # TODO: find mojority, if multiple docs are loaded
+        self.data_category = document.category
         self.vector_index.storage_context.persist(
             persist_dir=CustomLlamaIndexChatEngineWrapper.cfd / "storage"
         )
@@ -254,22 +248,19 @@ class CustomLlamaIndexChatEngineWrapper:
             persist_dir=CustomLlamaIndexChatEngineWrapper.cfd / "storage"
         )
         self.documents.clear()
-        # ToDo delete text documents in data folder
+        # data folder with filed is cleared in respective route in fastapi_app.py
 
     def create_vector_index(self):
-        # print(node. for doc in self.documents for node in doc.nodes)
         return VectorStoreIndex(
             [
                 node for doc in self.documents for node in doc.nodes
             ],  # current use case: no docs availabe, so empty list []
             service_context=self.service_context,
-            # storage_context=self.storage_context,
         )
 
     def _add_to_vector_index(self, nodes):
         self.vector_index.insert_nodes(
             nodes,
-            # service_context=self.service_context)
         )
 
     def _create_vector_index_retriever(self):
@@ -305,8 +296,6 @@ class CustomLlamaIndexChatEngineWrapper:
         )
         return CondenseQuestionChatEngine.from_defaults(
             query_engine=vector_query_engine,
-            # condense_question_prompt=custom_prompt,
-            # chat_history=custom_chat_history,
             memory=ChatMemoryBuffer.from_defaults(token_limit=1500),
             verbose=True,
             callback_manager=self.callback_manager,
@@ -321,7 +310,6 @@ class CustomLlamaIndexChatEngineWrapper:
         self.vector_index.service_context.llm.__dict__.update(
             {"temperature": temperature}
         )
-        # self.llm.temperature=temperature
 
     def answer_question(self, question: str) -> str:
         return self.chat_engine.chat(question.prompt)
