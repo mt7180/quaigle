@@ -150,9 +150,9 @@ jobs:
     if: |
         always() && 
         github.ref_name == 'main' && 
-        (needs.lint_backend.result == 'success'  ||
+        (needs.lint_backend.result != 'failure'  &&
         (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == 'true')) &&
-        (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
+        needs.build_backend_image.result != 'failure'
        
     runs-on: ubuntu-latest
     steps:
@@ -185,7 +185,7 @@ jobs:
             echo "Docker login and image operations failed after $retries attempts."
             exit 1
           fi
-          
+
           sleep 30
           ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
             sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
