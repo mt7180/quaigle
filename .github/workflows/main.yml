@@ -57,11 +57,7 @@ jobs:
   create_backend_ec2:
       name: pulumi up backend infrastructure
       needs: detect_changes
-      if: |
-        github.ref_name == 'main' &&
-        (needs.detect_changes.outputs.backend == 'true' ||
-        needs.detect_changes.outputs.frontend == 'true' ||
-        needs.detect_changes.outputs.infrastructure == 'true')
+      if: ${{ github.ref_name == 'main' }}
       runs-on: ubuntu-latest
       outputs:
         ec2_ip: ${{ steps.pulumi.outputs.instance_public_ip }}
