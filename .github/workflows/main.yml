@@ -186,6 +186,7 @@ jobs:
             exit 1
           fi
           
+          sleep 30
           ssh -o StrictHostKeyChecking=no -i key ${{ env.USER_NAME }}@${{ env.HOSTNAME }} '
             sudo docker login --username ${{ github.actor }} --password ${{ secrets.GH_PAT }} ghcr.io &&
             sudo docker stop ghcr.io/${{ github.repository }}_backend_container
