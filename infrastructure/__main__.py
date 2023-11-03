@@ -1,4 +1,6 @@
-"""A code as infrastructure pulumi program to set-up an ec2 instance"""
+""" An infrastructure-as-code (IaC) pulumi program to set-up an AWS cloud resources such
+as EC2, Secrets Manager and related roles and permissions
+"""
 
 import pulumi
 from pulumi_aws import ec2, iam

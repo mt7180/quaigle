@@ -304,7 +304,6 @@ async def clear_history():
 
 @app.get(
     "/quiz",
-    # response_model=MultipleChoiceTest,
     responses={
         200: {"model": MultipleChoiceTest},
         400: {"model": ErrorResponse},

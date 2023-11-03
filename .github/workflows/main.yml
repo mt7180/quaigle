@@ -3,7 +3,6 @@ run-name: CI/CD triggered by @${{ github.actor }}
 
 on: [push]
 
-#  ToDo: force deploy jobs to be executed after linting  
 jobs:
   detect_changes:
       runs-on: ubuntu-latest
@@ -59,7 +58,7 @@ jobs:
       name: pulumi up backend infrastructure
       needs: detect_changes
       if: |
-        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' &&
+        github.ref_name == 'main' &&
         (needs.detect_changes.outputs.backend == 'true' ||
         needs.detect_changes.outputs.frontend == 'true' ||
         needs.detect_changes.outputs.infrastructure == 'true')
@@ -127,7 +126,7 @@ jobs:
     name: build backend image and push to ghcr
     needs: lint_backend
     if: |
-        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' &&
+        github.ref_name == 'main' &&
         needs.lint_backend.result == 'success' 
     runs-on: ubuntu-latest
     defaults:
@@ -146,11 +145,11 @@ jobs:
     needs: [lint_backend, build_backend_image, create_backend_ec2]
     # always() can not be canceled, but the job needs to be run even if the preceeding jobs
     # defined in needs: are skipped (== canceled()). On the other
-    # hand the job has to wait for the jobs defined in need: to have infrastructure and docker image prepared
+    # hand the job has to wait for the jobs defined in needs: to have infrastructure and docker image prepared
     # in consequence there is no other option than to use always()
     if: |
         always() && 
-        github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' && 
+        github.ref_name == 'main' && 
         (needs.lint_backend.result == 'success'  ||
         (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == 'true')) &&
         (needs.build_backend_image.result == 'success' || needs.build_backend_image.result == 'skipped')
@@ -200,7 +199,7 @@ jobs:
     needs: [lint_frontend, transfer_backend_ip]
     if: |
         always() &&
-        (github.ref == 'refs/heads/main' || github.ref_name == '47-deploy-fastapi-backend-to-aws-using-pulumi' ) && 
+        github.ref == 'refs/heads/main' && 
         needs.lint_frontend.result == 'success' 
     runs-on: ubuntu-latest
     defaults:
