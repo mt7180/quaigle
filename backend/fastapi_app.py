@@ -181,7 +181,7 @@ async def handle_uploadfile(
             return document
 
 
-async def handle_upload_url(upload_url):
+async def handle_upload_url(upload_url) -> None:
     match re.split(r"[./]", upload_url):
         case [*_, dir, file_name, "txt"] if dir == "data":
             try:

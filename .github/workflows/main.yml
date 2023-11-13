@@ -147,7 +147,8 @@ jobs:
         always() && 
         github.ref_name == 'main' && 
         (needs.lint_backend.result != 'failure'  &&
-        (needs.create_backend_ec2.result == 'success' && needs.create_backend_ec2.outputs.ec2_ip_changed == 'true')) &&
+        (needs.create_backend_ec2.result == 'success' && 
+        (needs.create_backend_ec2.outputs.ec2_ip_changed == 'true' || needs.lint_backend.result == 'success'))) &&
         needs.build_backend_image.result != 'failure'
        
     runs-on: ubuntu-latest
