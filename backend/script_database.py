@@ -24,10 +24,10 @@ class CustomTokenCounter:
     def total_llm_token_count(self):
         return self._total_llm_token_count
 
-    def reset_counts(self):
+    def reset_counts(self) -> None:
         self._total_llm_token_count = 0
 
-    def add_count(self, value: int):
+    def add_count(self, value: int) -> None:
         if isinstance(value, int) and value >= 0:
             self._total_llm_token_count += value
         else:
