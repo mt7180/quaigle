@@ -16,3 +16,4 @@ redis-om>=0.2.1
 redis>=4.6.0 
 html2text
 boto3
+llama-hub==0.0.43

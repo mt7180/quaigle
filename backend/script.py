@@ -8,6 +8,9 @@ from llama_index import (
     set_global_service_context,
     get_response_synthesizer,
 )
+from llama_index.readers import BeautifulSoupWebReader
+from llama_hub.file.pdf.base import PDFReader
+
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.text_splitter import TokenTextSplitter
@@ -125,10 +128,6 @@ class AIMarvinDocument(LlamaBaseModel):
 class AIPdfDocument(AITextDocument):
     @classmethod
     def _load_document(cls, identifier: str):
-        from llama_index import download_loader
-
-        PDFReader = download_loader("PDFReader")
-
         loader = PDFReader()
         return loader.load_data(
             file=pathlib.Path(str(AITextDocument.cfd / identifier))
@@ -152,12 +151,13 @@ class AIHtmlDocument(AITextDocument):
         """loads the data of an html file at a given url
         identifier: url of the html file as str
         """
-        from llama_index import download_loader
+        # from llama_index import download_loader
 
-        BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
+        # BeautifulSoupWebReader = download_loader("BeautifulSoupWebReader")
 
-        loader = BeautifulSoupWebReader()
-        return loader.load_data(urls=[identifier])[0]
+        # loader = BeautifulSoupWebReader()
+        # return loader.load_data(urls=[identifier])[0]
+        return BeautifulSoupWebReader().load_data(urls=[identifier])[0]
 
     @classmethod
     def _load_document(cls, identifier: str):
