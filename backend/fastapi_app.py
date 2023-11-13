@@ -139,7 +139,7 @@ class ErrorResponse(BaseModel):
     detail: str
 
 
-def load_text_chat_engine():
+def load_text_chat_engine() -> None:
     if not app.chat_engine or app.chat_engine.data_category == "database":
         logging.debug("setting up text chatbot")
         logging.debug(f"Debug: {DEBUG_MODE}")
@@ -150,7 +150,7 @@ def load_text_chat_engine():
         ) = set_up_text_chatbot()
 
 
-def load_database_chat_engine():
+def load_database_chat_engine() -> None:
     if not app.chat_engine or app.chat_engine.data_category != "database":
         logging.debug("setting up database chatbot")
         (
