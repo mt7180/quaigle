@@ -9,7 +9,6 @@ from llama_index import (
     get_response_synthesizer,
 )
 from llama_index.readers import BeautifulSoupWebReader
-from llama_hub.file.pdf.base import PDFReader
 
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
@@ -128,10 +127,13 @@ class AIMarvinDocument(LlamaBaseModel):
 class AIPdfDocument(AITextDocument):
     @classmethod
     def _load_document(cls, identifier: str):
-        loader = PDFReader()
-        return loader.load_data(
-            file=pathlib.Path(str(AITextDocument.cfd / identifier))
-        )[0]
+        # loader = PDFReader()
+        # return loader.load_data(
+        #     file=pathlib.Path(str(AITextDocument.cfd / identifier))
+        # )[0]
+        return SimpleDirectoryReader(
+            input_files=[pathlib.Path(str(AITextDocument.cfd / identifier))]
+        ).load_data()[0]
 
 
 class AIHtmlDocument(AITextDocument):
