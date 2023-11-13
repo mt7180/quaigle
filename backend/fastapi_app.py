@@ -241,7 +241,7 @@ async def upload_file(
     except OSError as e:
         raise HTTPException(
             status_code=400,
-            detail=f"There was an unexpected OSError on uploading the file:{e.detail}",
+            detail=f"There was an unexpected OSError on uploading the file:{e}",
         )
     logging.debug(f"engine_up?: {app.chat_engine is not None}")
     logging.debug(f"message: {message}")
