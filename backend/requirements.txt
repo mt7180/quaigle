@@ -1,10 +1,10 @@
-marvin>=1.4.0
+marvin==1.4.0
 fastapi>=0.99.1
 pydantic
 python-dotenv
 python-multipart>=0.0.6
-llama-index>=0.8.36
-langchain>=0.0.309
+llama-index==0.8.36
+langchain==0.0.309
 regex>=2023.8.8
 certifi>=2023.7.22
 uvicorn>=0.23.2

@@ -1,4 +1,4 @@
-from backend.script_database import (
+from script_SQL_querying import (
     set_up_database_chatbot,
 )
 
