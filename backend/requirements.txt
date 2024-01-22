@@ -1,3 +1,6 @@
+# the llm frameworks and openai library are fixed to a specific version here
+# since they are currently under massive development
+openai==0.28.0
 marvin==1.4.0
 fastapi>=0.99.1
 pydantic
