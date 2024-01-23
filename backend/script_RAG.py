@@ -28,6 +28,7 @@ from llama_index.memory import ChatMemoryBuffer
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
+from marvin import settings as marvin_settings
 from llama_index.bridge.pydantic import BaseModel as LlamaBaseModel
 from llama_index.bridge.pydantic import Field as LlamaField
 import pathlib
@@ -36,6 +37,8 @@ import logging
 import os
 
 from .document_categories import CATEGORY_LABELS
+
+marvin_settings.openai.api_key = os.getenv("OPENAI_API_KEY")
 
 
 class AITextDocument:
@@ -351,7 +354,6 @@ if __name__ == "__main__":
 
     try:
         url = "https://medium.com/how-ai-built-this/zero-to-one-a-guide-to-building-a-first-pdf-chatbot-with-langchain-llamaindex-part-1-7d0e9c0d62f"
-        # "https://en.wikipedia.org/wiki/Sandor_Szondi"
         document = AIHtmlDocument(url, "gpt-3.5-turbo", callback_manager)
         chat_engine.add_document(document)
 
