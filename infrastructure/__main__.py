@@ -1,5 +1,5 @@
-""" An infrastructure-as-code (IaC) pulumi program to set-up an AWS cloud resources such
-as EC2, Secrets Manager and related roles and permissions
+""" An infrastructure-as-code (IaC) pulumi program to set-up AWS cloud resources such
+as an EC2 instance, add secrets to the Secrets Manager and related roles and permissions
 """
 
 import pulumi
@@ -46,13 +46,6 @@ security_group_http = ec2.SecurityGroup(
             "to_port": 22,
             "cidr_blocks": ["0.0.0.0/0"],
         },
-        # ping doesn't work in plain gh actions, is there any runner?
-        # {
-        #     "protocol": "icmp",
-        #     "from_port": 8,  # ICMP type for Echo request (ping)
-        #     "to_port": 0,  # ICMP code for Echo reply
-        #     "cidr_blocks": ["0.0.0.0/0"],
-        # },
     ],
     # neccessary for docker installation:
     egress=[
@@ -73,12 +66,6 @@ security_group_http = ec2.SecurityGroup(
 
 ubuntu_ami = pulumi.Output.from_input(ec2_image_id)
 
-# Specify root block device and add some extra storage
-# root_block_device = ec2.InstanceRootBlockDeviceArgs(
-#     volume_size=ec2_storage_size,
-#     volume_type='gp2',
-#     delete_on_termination=True,
-# )
 
 # Create IAM role for the EC2 instance (standard - yes, 2017!)
 ec2_iam_role = iam.Role(
@@ -97,31 +84,6 @@ ec2_iam_role = iam.Role(
     ),
 )
 
-# Create a policy for CloudWatch Logs access
-# ec2_logs_policy = iam.Policy(
-#     "ec2LogsPolicy",
-#     description="A policy to allow EC2 instances to send logs to CloudWatch",
-#     policy=json.dumps(
-#         {
-#             "Version": "2012-10-17",
-#             "Statement": [
-#                 {
-#                     "Action": [
-#                         "logs:CreateLogGroup",
-#                         "logs:CreateLogStream",
-#                         "logs:PutLogEvents",
-#                         "logs:DescribeLogStreams",
-#                     ],
-#                     "Effect": "Allow",
-#                     "Resource": "arn:aws:logs:*:*:*",
-#                 }
-#             ],
-#         }
-#     ),
-# )
-
-# Create a policy for CloudWatch Logs access
-# https://docs.aws.amazon.com/mediaconnect/latest/ug/iam-policy-examples-asm-secrets.html
 ec2_sec_man_policy = iam.Policy(
     "ec2SecManPolicy",
     description="A policy to allow EC2 instances read access to specific resources \
@@ -153,12 +115,6 @@ ec2_sec_man_policy = iam.Policy(
     ),
 )
 
-# Attach the logs policy to the EC2 role
-# ec2_logs_policy_attachment = iam.RolePolicyAttachment(
-#     "ec2LogsPolicyAttachment",
-#     policy_arn=ec2_logs_policy.arn,
-#     role=ec2_role.name,
-# )
 
 # Attach the sec manager policy to the EC2 role
 ec2_sec_man_policy_attachment = iam.RolePolicyAttachment(
@@ -219,8 +175,3 @@ pulumi.export("old_instance_ip", old_instance_ip)
 pulumi.export("ec2_instance_id", ec2_instance.id)
 pulumi.export("instance_public_ip", ec2_instance.public_ip)
 pulumi.export("instance_public_dns", ec2_instance.public_dns)
-
-
-# https://www.learnaws.org/2021/06/19/pulumi-python-ec2/
-# https://github.com/pulumi/examples/blob/master/aws-py-ec2-provisioners/__main__.py
-# https://github.com/jonashackt/pulumi-python-aws-ansible/blob/master/README.md#ssh-connection-to-the-pulumi-created-ec2-instance
