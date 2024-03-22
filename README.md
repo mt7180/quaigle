@@ -94,7 +94,7 @@ https://docs.llamaindex.ai/en/stable/examples/chat_engine/chat_engine_condense_q
 
 ### Generating Multiple-Choice Questions on given context with LlamaIndex and LangChain PydanticOutputParser 
 
-In addition to thaving a conversation with your data, Quaigle also offers the possibility to generate multiple-choice questions on the given context. The challenge here was to obtain a structured output from the LLM, which is designed and optimized for the processing and generation of unstructured natural text. For the further programmatic use of the generated information, however, it is necessary to be able to rely on type-safe answers. It turned out that the Pydantic framework is very powerful in forcing the llm to generate an answer in a specigic output structure and offers a very clean and explicit way to achive this. As LlamaIndex was used for RAG in this project, the LLamaIndex LangChain PydanticOutputParser was used here.
+In addition to thaving a conversation with your data, Quaigle also offers the possibility to generate multiple-choice questions on the given context. The challenge here was to obtain a structured output from the LLM, which is designed and optimized for the processing and generation of unstructured natural text. For the further programmatic use of the generated information, however, it is necessary to be able to rely on type-safe answers. It turned out that the Pydantic framework is very powerful in forcing the llm to generate an answer in a specific output structure and offers a very clean and explicit way to achieve this. As LlamaIndex was used for RAG in this project, the LLamaIndex LangChain PydanticOutputParser was used here.
 
 
 ### Querying SQL Databases with Langchain SQLDatabaseChain
@@ -103,7 +103,7 @@ Quaigle supports querying a SQLite database by natural language, which makes dat
 
 ## Continuous Deployment with GitHub Actions
 
-The whole application is deployed via CI/CD using GitHub Actions and Pulumi for infrastructure as code (IaC). The backend is deployed to an AWS EC2 instance and the frontend is hosted on fly.io. Changes to the frontend, backend, or infrastructure on the Github main branch trigger automated updates.
+The whole application is deployed via CI/CD using GitHub Actions and Pulumi for code based creation of the infrastructure (IaC). The backend is deployed to an AWS EC2 instance and the frontend is hosted on fly.io. Changes to the frontend, backend, or infrastructure on the GitHub main branch trigger automated updates.
 See the full GitHub Actions yml file here: [.github/workflows/main.yml](.github/workflows/main.yml)
 
 ## Streamlit User Interface 
