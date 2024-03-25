@@ -1,3 +1,8 @@
+import pathlib
+import tiktoken
+import logging
+import os
+
 from llama_index import (
     SimpleWebPageReader,
     VectorStoreIndex,
@@ -9,7 +14,7 @@ from llama_index import (
     get_response_synthesizer,
 )
 from llama_index.readers import BeautifulSoupWebReader
-
+from llama_index.schema import Document
 from llama_index.llms import OpenAI
 from llama_index.node_parser import SimpleNodeParser
 from llama_index.text_splitter import TokenTextSplitter
@@ -24,19 +29,15 @@ from llama_index.query_engine import RetrieverQueryEngine
 from llama_index.chat_engine.condense_question import CondenseQuestionChatEngine
 from llama_index.callbacks import CallbackManager, TokenCountingHandler
 from llama_index.memory import ChatMemoryBuffer
-
 from llama_index.vector_stores.types import MetadataInfo, VectorStoreInfo
 
 from marvin import ai_model
 from marvin import settings as marvin_settings
 from llama_index.bridge.pydantic import BaseModel as LlamaBaseModel
 from llama_index.bridge.pydantic import Field as LlamaField
-import pathlib
-import tiktoken
-import logging
-import os
 
 from .document_categories import CATEGORY_LABELS
+from .models import QuestionModel
 
 marvin_settings.openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -54,7 +55,7 @@ class AITextDocument:
         document_name: str,
         llm_str: str,
         callback_manager: CallbackManager | None = None,
-    ):
+    ) -> None:
         self.callback_manager: CallbackManager | None = callback_manager
         self.document = self._load_document(document_name)
         self.nodes = self.split_document_and_extract_metadata(llm_str)
@@ -64,7 +65,7 @@ class AITextDocument:
             question about "{text_subject}".'
 
     @classmethod
-    def _load_document(cls, identifier: str):
+    def _load_document(cls, identifier: str) -> Document:
         """loads only the data of the specified name
 
         identifier: name of the text file as str
@@ -129,7 +130,7 @@ class AIMarvinDocument(LlamaBaseModel):
 
 class AIPdfDocument(AITextDocument):
     @classmethod
-    def _load_document(cls, identifier: str):
+    def _load_document(cls, identifier: str) -> Document:
         # loader = PDFReader()
         # return loader.load_data(
         #     file=pathlib.Path(str(AITextDocument.cfd / identifier))
@@ -141,7 +142,7 @@ class AIPdfDocument(AITextDocument):
 
 class AIHtmlDocument(AITextDocument):
     @classmethod
-    def _load_document_simplewebpageReader(cls, identifier: str):
+    def _load_document_simplewebpageReader(cls, identifier: str) -> Document:
         """loads the data of a simple static website at a given url
         identifier: url of the html file as str
         """
@@ -152,7 +153,7 @@ class AIHtmlDocument(AITextDocument):
         )[0]
 
     @classmethod
-    def _load_document_BeautifulSoupWebReader(cls, identifier: str):
+    def _load_document_BeautifulSoupWebReader(cls, identifier: str) -> Document:
         """loads the data of an html file at a given url
         identifier: url of the html file as str
         """
@@ -165,7 +166,7 @@ class AIHtmlDocument(AITextDocument):
         return BeautifulSoupWebReader().load_data(urls=[identifier])[0]
 
     @classmethod
-    def _load_document(cls, identifier: str):
+    def _load_document(cls, identifier: str) -> Document:
         """loads the data of an html file at a given url
         identifier: url of the html file as str
         """
@@ -316,7 +317,7 @@ class CustomLlamaIndexChatEngineWrapper:
             {"temperature": temperature}
         )
 
-    def answer_question(self, question: str) -> str:
+    def answer_question(self, question: QuestionModel) -> str:
         return self.chat_engine.chat(question.prompt)
 
 

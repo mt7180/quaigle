@@ -22,3 +22,9 @@ repos:
     files: ^frontend/
     args: [--config-file=frontend/mypy.ini]
     additional_dependencies: [types-requests]
+  - id: mypy
+    name: mypy-backend
+    files: ^backend/
+    args: [--config-file=backend/mypy.ini]
+    additional_dependencies: [types-requests]
+    

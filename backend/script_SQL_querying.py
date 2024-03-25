@@ -1,16 +1,24 @@
 # https://python.langchain.com/docs/expression_language/cookbook/sql_db
+from __future__ import annotations
 import logging
 import re
 import sys
+from typing import Any
+from operator import itemgetter
+
 from langchain.chat_models import ChatOpenAI
 from langchain.utilities import SQLDatabase
 from langchain.schema.output_parser import StrOutputParser
-from langchain.schema.runnable import RunnableLambda, RunnableMap, RunnablePassthrough
+from langchain.schema.runnable import (
+    RunnableLambda,
+    RunnableMap,
+    RunnablePassthrough,
+    RunnableSequence,
+)
 from langchain.prompts import ChatPromptTemplate
 
 from langchain.callbacks import get_openai_callback
 
-from operator import itemgetter
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logging.getLogger(__name__).addHandler(logging.StreamHandler(stream=sys.stdout))
@@ -48,6 +56,16 @@ class AIDataBase(SQLDatabase):
             + re.sub(r"/\*((.|\n)*?)\*/", "", self.get_table_info()).strip()
         )
 
+    @classmethod
+    def from_uri(
+        cls, database_uri: str, engine_args: dict | None = None, **kwargs: Any
+    ) -> AIDataBase:
+        """Construct a SQLAlchemy engine from URI."""
+        from sqlalchemy import create_engine
+
+        _engine_args = engine_args or {}
+        return cls(create_engine(database_uri, **_engine_args), **kwargs)
+
     def get_schema(self, _):
         return self.get_table_info()
 
@@ -60,10 +78,10 @@ class AIDataBase(SQLDatabase):
         llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
         # logging.debug(self.get_table_info())
         with get_openai_callback() as callback:
-            query_generator = (
+            query_generator: RunnableSequence[Any, Any] = (
                 RunnableMap(
                     {
-                        "schema": RunnableLambda(self.get_schema),
+                        "schema": RunnableLambda(self.get_schema),  # type: ignore
                         "question": itemgetter("question"),
                     }
                 )
@@ -106,10 +124,10 @@ class AIDataBase(SQLDatabase):
 class DataChatBotWrapper:
     def __init__(self, callback_manager: CustomTokenCounter):
         self.data_category: str = "database"
-        self.token_callback = callback_manager
-        self.document: AIDataBase = None
+        self.token_callback: CustomTokenCounter = callback_manager
+        self.document: AIDataBase | None = None
 
-    def add_document(self, document) -> None:
+    def add_document(self, document: AIDataBase) -> None:
         self.document = document
 
     def clear_chat_history(self) -> str:
@@ -118,13 +136,15 @@ class DataChatBotWrapper:
     def clear_data_storage(self) -> None:
         del self.document
         self.document = None
-        # ToDo delete db file ?
 
-    def update_temp(self, temperature) -> None:
+    def update_temp(self, temperature) -> None:  # type: ignore
         pass
 
     def answer_question(self, question: str) -> str:
-        return self.document.ask_a_question(question, self.token_callback)
+        if self.document:
+            return self.document.ask_a_question(question, self.token_callback)
+        else:
+            raise AttributeError("no document loaded")
 
 
 def set_up_database_chatbot():
@@ -151,7 +171,8 @@ if __name__ == "__main__":
 
     chat_engine, callback_manager, token_counter = set_up_database_chatbot()
 
-    document: AIDataBase = AIDataBase.from_uri("sqlite:///data/database.sqlite")
+    document = AIDataBase.from_uri("sqlite:///data/database.sqlite")
+
     print("________")
     print(document.summary)
 
