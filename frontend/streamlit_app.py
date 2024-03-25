@@ -1,17 +1,22 @@
 # run command from root: streamlit run streamlit_app.py
+import os
+import sys
+import logging
 import pathlib
 import random
-from fastapi import UploadFile
+from typing import Callable
+
+from streamlit.runtime.uploaded_file_manager import UploadedFile
+
+# from fastapi import UploadFile
 import streamlit as st
 from streamlit_option_menu import option_menu
 from streamlit_extras.add_vertical_space import add_vertical_space
 from streamlit_extras.stylable_container import stylable_container
 import requests
-import os
-import sys
-import logging
-import certifi
+
 from PIL import Image
+import certifi
 from dotenv import load_dotenv
 import sentry_sdk
 
@@ -35,7 +40,7 @@ API_URL = os.getenv("BACKEND_URL", "http://localhost") + ":8000"
 logging.info(f"{API_URL=}")
 
 APP_TITLE = "Quaigle"
-MAIN_PAGE = {}
+PAGE_REGISTRY_DICT: dict[str, Callable[..., None]] = {}
 cfd = pathlib.Path(__file__).parent
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -169,21 +174,18 @@ def display_options_menu():
         st.session_state["redirect_page"] = None
 
 
-def make_get_request(route: str):
+def make_get_request(route: str) -> requests.Response:
     return requests.get(os.path.join(API_URL, route))
 
 
 def post_data_to_backend(
-    route: str, url: str = "", uploaded_file: UploadFile | None = None
-):
+    route: str, url: str = "", uploaded_file: UploadedFile | None = None
+) -> None:
     with st.spinner("Waiting for openai API response"):
         try:
             if url:
                 data = {"upload_url": url}
-                files = {"upload_file": ("", None)}
-                response = requests.post(
-                    os.path.join(API_URL, route), data=data, files=files
-                )
+                response = requests.post(os.path.join(API_URL, route), data=data)
             elif uploaded_file:
                 files = {"upload_file": (uploaded_file.name, uploaded_file)}
                 data = {"upload_url": ""}
@@ -287,7 +289,7 @@ def display_sidemenu():
             st.experimental_rerun()
 
 
-@register_page(MAIN_PAGE)
+@register_page(PAGE_REGISTRY_DICT)
 def questionai():
     with st.container():
         for message in st.session_state.messages:
@@ -335,7 +337,7 @@ def questionai():
             )
 
 
-@register_page(MAIN_PAGE)
+@register_page(PAGE_REGISTRY_DICT)
 def quizme():
     with st.container():
         if st.session_state["chat_mode"] == "database":
@@ -392,7 +394,7 @@ def quizme():
                 )
 
 
-@register_page(MAIN_PAGE)
+@register_page(PAGE_REGISTRY_DICT)
 def statistics():
     import pandas as pd
 
@@ -436,7 +438,7 @@ def main():
     display_header()
     display_sidemenu()
     # implement the selected page from options menu
-    MAIN_PAGE[st.session_state.selected_page]()
+    PAGE_REGISTRY_DICT[st.session_state.selected_page]()
 
 
 if __name__ == "__main__":
