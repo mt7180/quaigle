@@ -102,7 +102,7 @@ def load_database_chat_engine() -> None:
 async def handle_uploadfile(
     upload_file: UploadFile,
 ) -> AITextDocument | AIDataBase | AIPdfDocument | None:
-    if not (file_name := upload_file.filename):
+    if not (file_name := Path(upload_file.filename).name):
         return None
     with open(cfd / data_dir / file_name, "wb") as f:
         f.write(await upload_file.read())

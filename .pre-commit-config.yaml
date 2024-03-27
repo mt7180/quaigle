@@ -27,4 +27,9 @@ repos:
     files: ^backend/
     args: [--config-file=backend/mypy.ini]
     additional_dependencies: [types-requests]
+  - id: mypy
+    name: mypy-test
+    files: ^tests/
+    args: [--config-file=tests/mypy.ini]
+    additional_dependencies: [types-requests]
     
