@@ -1,16 +1,15 @@
 # python -m tests.test_backend.test_fastapi_app.py
 import logging
 import os
+import io
 import pytest
-
 from pathlib import Path
-import shutil
 import sys
 
 from fastapi.testclient import TestClient
 
-from backend.fastapi_app import (
-    app,
+from backend.fastapi_app import app
+from backend.models import (
     EmptyQuestionException,
     DoubleUploadException,
     NoUploadException,
@@ -26,6 +25,8 @@ example_file_dir = Path(__file__).parents[1] / "example_upload_files"
 
 
 # Todo: put fixtures into conftest.py
+
+
 @pytest.fixture
 def text_file():
     file_name = "example.txt"
@@ -34,11 +35,11 @@ def text_file():
             yield upload_file
         # clean-up app storage after tests
         finally:
-            if app.chat_engine:
-                app.chat_engine.clear_data_storage()
+            if app.state.chat_engine:
+                app.state.chat_engine.clear_data_storage()
                 logging.debug("chat engine cleared...")
-                app.chat_engine = None
-            if file := Path(backend_dir / "data" / file_name).is_file():
+                app.state.chat_engine = None
+            if (file := Path(backend_dir / "data" / file_name)).is_file():
                 os.remove(file)
 
 
@@ -46,32 +47,27 @@ def text_file():
 def url():
     yield "https://de.wikipedia.org/wiki/Don’t_repeat_yourself"
     # clean-up (clear_storage)
-    if app.chat_engine:
-        app.chat_engine.clear_data_storage()
+    if app.state.chat_engine:
+        app.state.chat_engine.clear_data_storage()
         logging.debug("chat engine cleared...")
-    app.chat_engine = None
-    app.callback_manager = None
-    app.token_counter = None
+    app.state.chat_engine = None
+    app.state.callback_manager = None
+    app.state.token_counter = None
 
 
 @pytest.fixture
-def url_db():
+def db_file():
     file_name = "database.sqlite"
-    app_data_dir = "data"
-    destination_file = Path(backend_dir / app_data_dir / file_name)
-    destination_file.parent.mkdir(exist_ok=True, parents=True)
-
-    url_db_copied_to_app = f"sqlite:///{app_data_dir}/{file_name}"
-    shutil.copy(example_file_dir / file_name, destination_file)
-    yield url_db_copied_to_app
-    # clean-up (clear_storage)
-    if app.chat_engine:
-        app.chat_engine.clear_data_storage()
-        logging.debug("chat engine cleared...")
-    app.chat_engine = None
-    app.token_counter = None
-    if destination_file.is_file():
-        os.remove(destination_file)
+    with Path(example_file_dir, file_name).open("rb") as upload_file:
+        try:
+            yield upload_file
+        finally:
+            if app.state.chat_engine:
+                app.state.chat_engine.clear_data_storage()
+                logging.debug("chat engine cleared...")
+                app.state.chat_engine = None
+            if (file := Path(backend_dir / "data" / file_name)).is_file():
+                os.remove(file)
 
 
 @pytest.mark.ai_call
@@ -104,40 +100,30 @@ def test_upload_url_webpage(url):
     assert data.get("used_tokens", None) is not None
 
 
-# def test_test_route():
-#     #data = {"upload_url": "sqlite:///data/database.sqlite"}
-#     file_name = "example.txt"
-#     file = Path(example_file_dir, file_name).open("rb")
-#     response = client.post(
-#         "/upload",
-#         files={"upload_file": ("example.txt", file)}
-#     )
+def test_upload_database_file(db_file):
+    db_file_name = Path(db_file.name).name
+    response = client.post(
+        "/upload",
+        data={"upload_url": ""},
+        files={"upload_file": (db_file_name, db_file)},
+    )
 
-#     assert response.status_code == 200
-#     assert response.json().get("detail") == "example"
-
-
-def test_upload_url_database(url_db):
-    data = {"upload_url": url_db}
-    response = client.post("/upload", data=data, files=None)
-
-    assert app.chat_engine is not None
-    assert app.chat_engine.data_category == "database"
-    # assert app.callback_manager is not None # is None in database mode
-    assert app.token_counter is not None
+    assert app.state.chat_engine is not None
+    assert app.state.chat_engine.data_category == "database"
+    assert app.state.callback_manager is None  # is None in database mode
+    assert app.state.token_counter is not None
 
     assert response.status_code == 200
     data = response.json()
     # test if keys in response and if not None
-    assert data.get("file_name", None) == url_db
-    # assert data.get("text_category", None) is not None
+    assert data.get("file_name", None) == db_file_name
     assert data.get("text_category") == "database"
     assert data.get("summary", None) is not None
     assert len(data.get("summary")) > 13
     assert data.get("used_tokens", None) is not None
 
 
-def test_upload_url_and_file(url: str, text_file):
+def test_upload_url_and_file(url: str, text_file: io.BytesIO) -> None:
     with pytest.raises(DoubleUploadException):
         client.post(
             "/upload",
@@ -157,20 +143,16 @@ def test_upload_bad_url():
     response = client.post("/upload", data={"upload_url": url}, files=None)
     assert response.status_code == 400
     assert response.json() == {
-        "detail": f"There was a problem with the provided url (MissingSchema): {url}"
+        "detail": f"""There was a problem with the provided url (MissingSchema):
+            {url}
+            """
     }
-
-
-# def test_upload_database():
-# """currently no small ( <200MB) database availabe"""
-#     response = client.post("/upload")
-#     assert response.status_code == 200
 
 
 @pytest.mark.ai_call
 @pytest.mark.ai_gpt35
 def test_ask_question_about_given_text(text_file):
-    """Caution: test takes some time since openai API call required"""
+    """Caution: openai API call required"""
     client.post(
         "/upload",
         data={"upload_url": ""},
@@ -193,11 +175,13 @@ def test_ask_question_about_given_text(text_file):
 
 @pytest.mark.ai_call
 @pytest.mark.ai_gpt35
-def test_ask_question_about_given_database(url_db):
-    """Caution: test takes some time since openai API call required"""
-    data = {"upload_url": url_db}
-    res1 = client.post("/upload", data=data, files=None)
-    assert res1.status_code == 200
+def test_ask_question_about_given_database(db_file):
+    """Caution: openai API call required"""
+    # data = {"upload_url": url_db}
+    upload_response = client.post(
+        "/upload", files={"upload_file": (Path(db_file.name).name, db_file)}
+    )
+    assert upload_response.status_code == 200
 
     response = client.post(
         "/qa_text",

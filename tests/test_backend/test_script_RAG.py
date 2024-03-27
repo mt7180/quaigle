@@ -1,4 +1,4 @@
-from script_RAG import (
+from backend.script_RAG import (
     set_up_text_chatbot,
 )
 

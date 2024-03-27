@@ -1,17 +1,35 @@
 repos:
-# taken from: https://black.readthedocs.io/en/stable/integrations/source_version_control.html
-# Using this mirror lets us use mypyc-compiled black, which is about 2x faster
+
+# black formatter
 - repo: https://github.com/psf/black-pre-commit-mirror
   rev: 23.9.1
   hooks:
     - id: black
-      # It is recommended to specify the latest version of Python
-      # supported by your project here, or alternatively use
-      # pre-commit's default_language_version, see
-      # https://pre-commit.com/#top_level-default_language_version
       language_version: python3.10
-# taken from: https://pypi.org/project/ruff/
+
+# ruff linter
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.0.291
+  rev: v0.3.4
   hooks:
     - id: ruff
+
+# mypy static type checker
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v1.8.0
+  hooks:
+  - id: mypy
+    name: mypy-frontend
+    files: ^frontend/
+    args: [--config-file=frontend/mypy.ini]
+    additional_dependencies: [types-requests]
+  - id: mypy
+    name: mypy-backend
+    files: ^backend/
+    args: [--config-file=backend/mypy.ini]
+    additional_dependencies: [types-requests]
+  - id: mypy
+    name: mypy-test
+    files: ^tests/
+    args: [--config-file=tests/mypy.ini]
+    additional_dependencies: [types-requests]
+    
