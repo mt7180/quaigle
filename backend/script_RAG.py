@@ -39,7 +39,9 @@ from llama_index.bridge.pydantic import Field as LlamaField
 from .document_categories import CATEGORY_LABELS
 from .models import QuestionModel
 
-marvin_settings.openai.api_key = os.getenv("OPENAI_API_KEY")
+if openai_api_key := os.getenv("OPENAI_API_KEY"):
+    marvin_settings.openai.api_key = os.getenv("OPENAI_API_KEY")
+    os.environ["MARVIN_OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")  # type: ignore
 
 
 class AITextDocument:
