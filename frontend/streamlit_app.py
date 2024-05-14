@@ -4,7 +4,6 @@ import sys
 import logging
 import pathlib
 import random
-from typing import Callable
 
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
@@ -18,7 +17,7 @@ import certifi
 from dotenv import load_dotenv
 import sentry_sdk
 
-from utils.helpers import register_page
+from utils.helpers import MultiPage
 
 
 # workaround for mac to solve "SSL: CERTIFICATE_VERIFY_FAILED Error"
@@ -38,7 +37,6 @@ API_URL = os.getenv("BACKEND_URL", "http://localhost") + ":8000"
 logging.info(f"{API_URL=}")
 
 APP_TITLE = "Quaigle"
-PAGE_REGISTRY_DICT: dict[str, Callable[..., None]] = {}
 cfd = pathlib.Path(__file__).parent
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -285,7 +283,7 @@ def display_sidemenu():
             st.rerun()
 
 
-@register_page(PAGE_REGISTRY_DICT)
+@MultiPage
 def questionai():
     with st.container():
         messages = stylable_container(
@@ -347,7 +345,7 @@ def questionai():
                 )
 
 
-@register_page(PAGE_REGISTRY_DICT)
+@MultiPage
 def quizme():
     if st.session_state["chat_mode"] == "database":
         st.markdown(
@@ -403,7 +401,7 @@ def quizme():
             )
 
 
-@register_page(PAGE_REGISTRY_DICT)
+@MultiPage
 def statistics():
     import pandas as pd
 
@@ -446,7 +444,7 @@ def main():
     display_header()
     display_sidemenu()
     # implement the selected page from options menu
-    PAGE_REGISTRY_DICT[st.session_state.selected_page]()
+    MultiPage.registry[st.session_state.selected_page]()
 
 
 if __name__ == "__main__":
